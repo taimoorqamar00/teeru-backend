@@ -20,6 +20,17 @@ const userValidationSchema = z.object({
   }),
 });
 
+const createStaffValidationSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(1, { message: 'Full name is required' }),
+    gender: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email({ message: 'Invalid email format' }),
+    password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
+  }),
+});
+
 export const userValidation = {
   userValidationSchema,
+  createStaffValidationSchema,
 };

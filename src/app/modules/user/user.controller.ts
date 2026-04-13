@@ -18,6 +18,23 @@ const createUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const createStaff = catchAsync(async (req: Request, res: Response) => {
+  console.log('create-staff called. headers:', {
+    authorization: req.headers.authorization || req.headers.token,
+  });
+  console.log('create-staff body:', req.body);
+
+  const staffPayload = req.body;
+  const newStaff = await userService.createStaff(staffPayload);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Staff created successfully',
+    data: newStaff,
+  });
+});
+
 const userCreateVarification = catchAsync(async (req, res) => {
   console.log('..........1..........');
   const token = req.headers?.token as string;
@@ -88,6 +105,18 @@ const getAllUsers = catchAsync(async (req, res) => {
     meta: result.meta,
     data: result.result,
     message: 'Users All are requered successful!!',
+  });
+});
+
+const getAllStaff = catchAsync(async (req, res) => {
+  const result = await userService.getAllStaffQuery(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Staff fetched successfully',
   });
 });
 
@@ -232,9 +261,20 @@ const deleteMyAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteStaff = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.deleteStaff(req.params.id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Staff deleted successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   userCreateVarification,
+  createStaff,
   completedProfile,
   addCardToUser,
   getMyCards,
@@ -246,6 +286,8 @@ export const userController = {
   blockUser,
   unblockUser,
   deleteMyAccount,
+  deleteStaff,
   getAllUsers,
   getAllUsersOverview,
+  getAllStaff,
 };

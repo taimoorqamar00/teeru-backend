@@ -18,6 +18,14 @@ userRoutes
   )
 
   .post(
+    '/create-staff',
+    auth('admin'),
+    parseData(),
+    validateRequest(userValidation?.createStaffValidationSchema),
+    userController.createStaff,
+  )
+
+  .post(
     '/create-user-verify-otp',
     validateRequest(resentOtpValidations.verifyOtpZodSchema),
     userController.userCreateVarification,
@@ -57,6 +65,9 @@ userRoutes
   .patch('/block/:id', auth('admin'), userController.blockUser)
   
   .patch('/unblock/:id', auth('admin'), userController.unblockUser)
+
+  .delete('/delete-staff/:id', auth('admin'), userController.deleteStaff)
+  .get('/all-staff', auth('admin'), userController.getAllStaff)
 
   .delete('/delete-my-account', auth('user'), userController.deleteMyAccount);
 

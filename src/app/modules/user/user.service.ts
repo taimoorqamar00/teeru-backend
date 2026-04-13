@@ -97,6 +97,47 @@ const createUserToken = async (payload: TUserCreate) => {
   return createUserToken;
 };
 
+const createStaff = async (payload: Partial<TUser>) => {
+  const { email, fullName, password, phone, gender } = payload as any;
+
+  if (!email || !password) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Email and password are required');
+  }
+
+  const userExist = await getUserByEmail(email);
+  if (userExist) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'User already exists with this email');
+  }
+
+  const userData: Partial<TUser> = {
+    fullName,
+    email,
+    password,
+    phone,
+    gender,
+    role: 'staff',
+  };
+
+  const user = await User.create(userData);
+
+  if (!user) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Staff creation failed');
+  }
+
+  // Ensure role is set to 'staff' (in case schema default or middleware altered it)
+  const ensured = await User.findByIdAndUpdate(
+    user._id,
+    { role: 'staff' },
+    { new: true },
+  );
+
+  if (!ensured) {
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to finalize staff role');
+  }
+
+  return ensured;
+};
+
 const otpVerifyAndCreateUser = async ({
   otp,
   token,
@@ -299,6 +340,23 @@ const getAllUserQuery = async (
 
   const result = await userQuery.modelQuery;
   const meta = await userQuery.countTotal();
+  return { meta, result };
+};
+
+const getAllStaffQuery = async (query: Record<string, unknown>) => {
+  const staffQuery = new QueryBuilder(User.find({ role: 'staff' }), query)
+    .search(['fullName'])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  // Ensure `role` is always returned even if `fields` query param omits it
+  staffQuery.modelQuery = staffQuery.modelQuery.select('+role');
+
+  const result = await staffQuery.modelQuery;
+  const meta = await staffQuery.countTotal();
+
   return { meta, result };
 };
 
@@ -623,6 +681,35 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
   return userDeleted;
 };
 
+const deleteStaff = async (id: string) => {
+  const user: TUser | null = await User.IsUserExistById(id);
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (user?.isDeleted) {
+    throw new AppError(httpStatus.FORBIDDEN, 'This user is already deleted');
+  }
+
+  // Ensure we're deleting a staff account
+  if (user.role !== 'staff') {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Only staff accounts can be deleted via this endpoint');
+  }
+
+  const userDeleted = await User.findByIdAndUpdate(
+    id,
+    { isDeleted: true },
+    { new: true },
+  );
+
+  if (!userDeleted) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Failed to delete staff');
+  }
+
+  return userDeleted;
+};
+
 const changeRole = async (id: string, role: string) => {
   const singleUser = await User.IsUserExistById(id);
 
@@ -695,6 +782,7 @@ const unblockUser = async (id: string) => {
 
 export const userService = {
   createUserToken,
+  createStaff,
   otpVerifyAndCreateUser,
   completedUser,
   addUniqueCardToUser,
@@ -705,10 +793,12 @@ export const userService = {
   getUserByEmail,
   updateUser,
   deleteMyAccount,
+  deleteStaff,
   changeRole,
   blockUser,
   unblockUser,
   getAllUserQuery,
+  getAllStaffQuery,
   getAllUserCount,
   getUsersOverview,
 };
