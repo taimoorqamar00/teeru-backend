@@ -10,6 +10,10 @@ import { reviewRoutes } from "../modules/review/review.route";
 import { ticketRoutes } from "../modules/ticket/ticket.route";
 import { paymentRoutes } from "../modules/payment/payment.route";
 import { slidingTextRoutes } from "../modules/slidingText/slidingText.route";
+import { bookingRoutes } from "../modules/booking/booking.route";
+import { testBookingRoutes } from "../modules/booking/booking.test-route";
+import { bayRoutes } from "../modules/bay/bay.route";
+import { scheduleRoutes } from "../modules/schedule/schedule.route";
 
 const router = Router();
 
@@ -58,6 +62,22 @@ const moduleRoutes = [
 {
   path: "/slidingText",
   route: slidingTextRoutes
+},
+{
+  path: "/bookings",
+  route: bookingRoutes
+},
+{
+  path: "/test-bookings",
+  route: testBookingRoutes
+},
+{
+  path: "/bays",
+  route: bayRoutes
+},
+{
+  path: "/schedules",
+  route: scheduleRoutes
 }
 ];
 

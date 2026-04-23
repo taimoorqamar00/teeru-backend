@@ -7,6 +7,10 @@ import { User } from '../modules/user/user.models';
 
 const auth = (...userRoles: string[]) => {
   return catchAsync(async (req, res, next) => {
+    console.log('=== AUTH MIDDLEWARE DEBUG ===');
+    console.log('req.body at auth start:', req.body);
+    console.log('typeof req.body:', typeof req.body);
+    
     const token: any = req.headers?.authorization || req?.headers?.token;
 
     if (!token) {
@@ -30,6 +34,8 @@ const auth = (...userRoles: string[]) => {
       console.log("execute this line")
       throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized');
     }
+    
+    console.log('req.body before next:', req.body);
     req.user = decodeData;
     next();
   });
