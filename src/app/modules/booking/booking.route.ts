@@ -79,6 +79,19 @@ router.get(
 );
 
 router.patch(
+  '/:id/extend',
+  auth('admin'),
+  validateRequest(bookingValidation.extendSessionValidationSchema),
+  bookingController.extendSession
+);
+
+router.patch(
+  '/:id/end',
+  auth('admin'),
+  bookingController.endSession
+);
+
+router.patch(
   '/:id',
   auth('admin', 'user'),
   validateRequest(bookingValidation.updateBookingValidationSchema),

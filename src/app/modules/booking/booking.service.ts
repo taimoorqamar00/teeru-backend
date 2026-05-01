@@ -1,6 +1,7 @@
 import { Booking } from './booking.model';
-import { TBooking, TBookingCreate, TBookingUpdate, TBookingListQuery, IPaginationResult } from './booking.interface';
+import { TBooking, TBookingCreate, TBookingUpdate, TBookingListQuery, TBayNumber, IPaginationResult } from './booking.interface';
 import mongoose from 'mongoose';
+import AppError from '../../error/AppError';
 
 // Pricing constants (can be moved to config)
 const BAY_RATES = {
@@ -8,6 +9,11 @@ const BAY_RATES = {
   2: 25000,
   3: 25000,
   4: 25000,
+};
+
+const ADD_ON_PRICES: Record<string, number> = {
+  'Golf Club Rental': 10000,
+  'Coaching Session': 20000,
 };
 
 const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
@@ -151,7 +157,7 @@ const checkBayAvailability = async (
   duration: number,
   excludeId?: string
 ): Promise<{ available: boolean; conflictingBookings?: TBooking[] }> => {
-  const isBooked = await Booking.isBookingExist(bayNumber, date, startTime, duration, excludeId);
+  const isBooked = await Booking.isBookingExist(bayNumber as TBayNumber, date, startTime, duration, excludeId);
   
   if (isBooked) {
     // Find conflicting bookings to return details
@@ -253,6 +259,75 @@ const getBookingStatistics = async (dateFrom?: Date, dateTo?: Date): Promise<{
   };
 };
 
+const extendSession = async (
+  id: string,
+  extraDuration: number,
+  addOns: string[] = [],
+): Promise<TBooking> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Invalid booking ID');
+  }
+
+  const booking = await Booking.findById(id);
+  if (!booking) throw new AppError(404, 'Booking not found');
+  if (booking.status !== 'confirmed') {
+    throw new AppError(400, 'Only confirmed bookings can be extended');
+  }
+
+  const [h, m] = booking.startTime.split(':').map(Number);
+  const start = new Date(booking.bookingDate as Date);
+  start.setHours(h, m, 0, 0);
+  const currentEnd = new Date(start.getTime() + booking.duration * 3600000);
+  const now = new Date();
+
+  if (now < start || now >= currentEnd) {
+    throw new AppError(400, 'Session is not currently active');
+  }
+
+  if (extraDuration > 0) {
+    const hasConflict = await Booking.isBookingExist(
+      booking.bayNumber as TBayNumber,
+      booking.bookingDate as Date,
+      booking.startTime,
+      booking.duration + extraDuration,
+      id,
+    );
+    if (hasConflict) {
+      throw new AppError(409, 'Extension conflicts with an existing booking');
+    }
+    booking.duration += extraDuration;
+  }
+
+  const bayRate = BAY_RATES[booking.bayNumber as keyof typeof BAY_RATES] ?? 25000;
+  const extraCost =
+    bayRate * extraDuration +
+    addOns.reduce((sum, name) => sum + (ADD_ON_PRICES[name] ?? 0), 0);
+
+  booking.totalAmount += extraCost;
+  if (addOns.length > 0) {
+    (booking.addOns as string[]) = [...((booking.addOns as string[]) ?? []), ...addOns];
+  }
+
+  await booking.save();
+  return booking;
+};
+
+const endSession = async (id: string): Promise<TBooking> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Invalid booking ID');
+  }
+
+  const booking = await Booking.findById(id);
+  if (!booking) throw new AppError(404, 'Booking not found');
+  if (booking.status !== 'confirmed') {
+    throw new AppError(400, 'Only confirmed bookings can be ended');
+  }
+
+  booking.status = 'completed';
+  await booking.save();
+  return booking;
+};
+
 export const bookingService = {
   createBooking,
   getAllBookings,
@@ -264,4 +339,6 @@ export const bookingService = {
   getTodayBookings,
   getUpcomingBookings,
   getBookingStatistics,
+  extendSession,
+  endSession,
 };

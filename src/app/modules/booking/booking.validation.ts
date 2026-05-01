@@ -22,8 +22,8 @@ const createBookingValidationSchema = z.object({
   body: z.object({
     customerInfo: customerInfoSchema,
     customerType: z
-      .enum(['member', 'walk-in'], {
-        errorMap: () => ({ message: 'Customer type must be either member or walk-in' }),
+      .enum(['member', 'walk-in', 'pass'], {
+        errorMap: () => ({ message: 'Customer type must be member, walk-in, or pass' }),
       }),
     bayNumber: z
       .number()
@@ -69,7 +69,7 @@ const updateBookingValidationSchema = z.object({
   body: z.object({
     customerInfo: customerInfoSchema.optional(),
     customerType: z
-      .enum(['member', 'walk-in'])
+      .enum(['member', 'walk-in', 'pass'])
       .optional(),
     bayNumber: z
       .number()
@@ -145,7 +145,7 @@ const listBookingsQueryValidationSchema = z.object({
       .enum(['pending', 'confirmed', 'cancelled', 'completed'])
       .optional(),
     customerType: z
-      .enum(['member', 'walk-in'])
+      .enum(['member', 'walk-in', 'pass'])
       .optional(),
     bayNumber: z
       .string()
@@ -193,10 +193,30 @@ const checkAvailabilityValidationSchema = z.object({
   }),
 });
 
+const extendSessionValidationSchema = z.object({
+  body: z
+    .object({
+      duration: z
+        .number()
+        .min(0, { message: 'Duration cannot be negative' })
+        .multipleOf(0.5, { message: 'Duration must be a multiple of 0.5 hours' })
+        .optional()
+        .default(0),
+      addOns: z
+        .array(z.enum(['Golf Club Rental', 'Coaching Session']))
+        .optional()
+        .default([]),
+    })
+    .refine((data) => data.duration > 0 || (data.addOns && data.addOns.length > 0), {
+      message: 'Provide a duration extension, at least one add-on, or both',
+    }),
+});
+
 export const bookingValidation = {
   createBookingValidationSchema,
   updateBookingValidationSchema,
   getBookingByIdValidationSchema,
   listBookingsQueryValidationSchema,
   checkAvailabilityValidationSchema,
+  extendSessionValidationSchema,
 };

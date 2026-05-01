@@ -183,9 +183,24 @@ const getBayStatistics = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getLiveBays = catchAsync(async (req: Request, res: Response) => {
+  const query = req.query;
+
+  const result = await bayService.getAllBays(query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Live bay status retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 export const bayController = {
   createBay,
   getAllBays,
+  getLiveBays,
   getBayById,
   updateBay,
   deleteBay,

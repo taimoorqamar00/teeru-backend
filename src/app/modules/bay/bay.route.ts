@@ -13,6 +13,11 @@ router.get(
 );
 
 router.get(
+  '/live',
+  bayController.getLiveBays
+);
+
+router.get(
   '/schedule',
   validateRequest(bayValidation.getBayScheduleValidationSchema),
   bayController.getBaySchedule

@@ -1,4 +1,5 @@
 import { Bay } from './bay.model';
+import { Booking } from '../booking/booking.model';
 import { TBay, TBayCreate, TBayUpdate, TBayListQuery, TBaySchedule, IPaginationResult } from './bay.interface';
 import mongoose from 'mongoose';
 
@@ -7,7 +8,7 @@ const createBay = async (payload: TBayCreate): Promise<TBay> => {
   return bay;
 };
 
-const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<TBay>> => {
+const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>> => {
   const {
     page = 1,
     limit = 10,
@@ -17,12 +18,8 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<TBay>
     search,
   } = query;
 
-  // Build filter conditions
   const filter: any = {};
-
   if (isActive !== undefined) filter.isActive = isActive;
-
-  // Search filter (name, hardware, or projector)
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -31,33 +28,75 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<TBay>
     ];
   }
 
-  // Sort options
   const sort: any = {};
   sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-  // Calculate skip value for pagination
   const skip = (page - 1) * limit;
 
-  // Execute query with pagination
   const [bays, total] = await Promise.all([
-    Bay.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean(),
+    Bay.find(filter).sort(sort).skip(skip).limit(limit).lean(),
     Bay.countDocuments(filter),
   ]);
 
-  const meta = {
-    page,
-    limit,
-    total,
-    totalPage: Math.ceil(total / limit),
-  };
+  // Enrich with live booking data (single query, no N+1)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  const bayNumbers = bays.map((b) => b.number);
+  const todayBookings = await Booking.find({
+    bayNumber: { $in: bayNumbers },
+    bookingDate: { $gte: todayStart, $lt: todayEnd },
+    status: 'confirmed',
+  }).lean();
+
+  const now = new Date();
+
+  // Group bookings by bayNumber
+  const bookingsByBay = new Map<number, any[]>();
+  for (const booking of todayBookings) {
+    const list = bookingsByBay.get(booking.bayNumber) ?? [];
+    list.push(booking);
+    bookingsByBay.set(booking.bayNumber, list);
+  }
+
+  const enrichedBays = bays.map((bay) => {
+    const bayBookings = bookingsByBay.get(bay.number) ?? [];
+    const result: any = { ...bay };
+
+    let upcomingStart: Date | null = null;
+
+    for (const booking of bayBookings) {
+      const [h, m] = booking.startTime.split(':').map(Number);
+      const start = new Date(booking.bookingDate as Date);
+      start.setHours(h, m, 0, 0);
+      const end = new Date(start.getTime() + booking.duration * 3600000);
+
+      if (start <= now && now < end) {
+        result.currentBooking = {
+          _id: booking._id,
+          customerName: booking.customerInfo?.name,
+          remainingTime: Math.ceil((end.getTime() - now.getTime()) / 60000),
+          endTime: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+          addOns: booking.addOns ?? [],
+        };
+      } else if (start > now) {
+        if (upcomingStart === null || start < upcomingStart) {
+          upcomingStart = start;
+          result.upcomingBooking = {
+            _id: booking._id,
+            startsIn: Math.ceil((start.getTime() - now.getTime()) / 60000),
+          };
+        }
+      }
+    }
+
+    return result;
+  });
 
   return {
-    data: bays,
-    meta,
+    data: enrichedBays,
+    meta: { page, limit, total, totalPage: Math.ceil(total / limit) },
   };
 };
 

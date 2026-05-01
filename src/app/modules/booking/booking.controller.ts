@@ -240,6 +240,33 @@ const getBookingsByDateRange = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
+const extendSession = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { duration, addOns } = req.body;
+
+  const booking = await bookingService.extendSession(id, duration, addOns);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Session extended successfully',
+    data: booking,
+  });
+});
+
+const endSession = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const booking = await bookingService.endSession(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Session ended successfully',
+    data: booking,
+  });
+});
+
 export const bookingController = {
   createBooking,
   getAllBookings,
@@ -252,4 +279,6 @@ export const bookingController = {
   getUpcomingBookings,
   getBookingStatistics,
   getBookingsByDateRange,
+  extendSession,
+  endSession,
 };

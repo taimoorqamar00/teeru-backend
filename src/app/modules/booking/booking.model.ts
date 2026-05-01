@@ -32,7 +32,7 @@ const bookingSchema = new Schema<TBooking>(
     },
     customerType: {
       type: String,
-      enum: ['member', 'walk-in'],
+      enum: ['member', 'walk-in', 'pass'],
       required: true,
     },
     bayNumber: {
@@ -42,8 +42,13 @@ const bookingSchema = new Schema<TBooking>(
     },
     duration: {
       type: Number,
-      enum: [1, 2, 3],
       required: true,
+      min: 0.5,
+      max: 12,
+    },
+    addOns: {
+      type: [String],
+      default: [],
     },
     totalAmount: {
       type: Number,

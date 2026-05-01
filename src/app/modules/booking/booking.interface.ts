@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 
-export type TCustomerType = 'member' | 'walk-in';
+export type TCustomerType = 'member' | 'walk-in' | 'pass';
 
 export type TPaymentMethod = 'wave' | 'orange-money';
 
@@ -8,7 +8,7 @@ export type TBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
 
 export type TBayNumber = 1 | 2 | 3 | 4;
 
-export type TDuration = 1 | 2 | 3; // in hours
+export type TDuration = number; // in hours, supports 0.5 increments
 
 export interface TCustomerInfo {
   name: string;
@@ -27,6 +27,7 @@ export interface TBookingCreate {
   startTime: string; // HH:mm format
   status?: TBookingStatus;
   notes?: string;
+  addOns?: string[];
 }
 
 export interface TBooking extends TBookingCreate {
@@ -47,6 +48,7 @@ export interface TBookingUpdate {
   startTime?: string;
   status?: TBookingStatus;
   notes?: string;
+  addOns?: string[];
 }
 
 export interface TBookingListQuery {
