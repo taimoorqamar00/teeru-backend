@@ -14,6 +14,7 @@ import { bookingRoutes } from "../modules/booking/booking.route";
 import { testBookingRoutes } from "../modules/booking/booking.test-route";
 import { bayRoutes } from "../modules/bay/bay.route";
 import { scheduleRoutes } from "../modules/schedule/schedule.route";
+import { membershipRoutes } from "../modules/membership/membership.route";
 
 const router = Router();
 
@@ -78,6 +79,10 @@ const moduleRoutes = [
 {
   path: "/schedules",
   route: scheduleRoutes
+},
+{
+  path: "/membership",
+  route: membershipRoutes
 }
 ];
 

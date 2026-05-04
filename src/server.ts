@@ -6,6 +6,7 @@ import config from './app/config';
 import socketIO from "socket.io"
 import { initSocketIO } from './socketIo';
 import createDefaultAdmin from './app/DB/createDefaultAdmin';
+import seedMembershipPlans from './app/DB/seedMembershipPlans';
 
 // Create a new HTTP server
 const socketServer = createServer();
@@ -22,7 +23,8 @@ async function main() {
     //   'mongodb+srv://tiger:tiger@team-codecanyon.ffrshve.mongodb.net/pro-mentors?retryWrites=true&w=majority&appName=Team-CodeCanyon',
     // );
 
-    createDefaultAdmin()
+    createDefaultAdmin();
+    seedMembershipPlans();
     // Start Express server
     // server = app.listen(Number(config.port), config.ip as string, () => {
 

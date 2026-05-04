@@ -2,6 +2,7 @@ import { Booking } from './booking.model';
 import { TBooking, TBookingCreate, TBookingUpdate, TBookingListQuery, TBayNumber, IPaginationResult } from './booking.interface';
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
+import { decrementMemberHours } from '../membership/membership.service';
 
 // Pricing constants (can be moved to config)
 const BAY_RATES = {
@@ -23,6 +24,15 @@ const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
   }
 
   const booking = await Booking.create(payload);
+
+  if (booking.status === 'confirmed' && ['member', 'pass'].includes(booking.customerType)) {
+    try {
+      await decrementMemberHours(booking.customerInfo.phone, booking.duration);
+    } catch {
+      // Non-critical: booking succeeded, hours decrement failed
+    }
+  }
+
   return booking;
 };
 
