@@ -9,9 +9,9 @@ export interface TPricing {
 export interface TScheduleCreate {
   bayId: string;
   date: string; // YYYY-MM-DD format
-  duration: number; // in hours
+  timeSlot: string; // HH:mm start time — one document per slot
+  duration: number; // in hours (integer)
   pricing: TPricing;
-  timeSlots: string[]; // Array of time strings like ["10:00", "14:00"]
   addOns?: string[];
 }
 
@@ -25,9 +25,9 @@ export interface TSchedule extends TScheduleCreate {
 export interface TScheduleUpdate {
   bayId?: string;
   date?: string;
+  timeSlot?: string;
   duration?: number;
   pricing?: TPricing;
-  timeSlots?: string[];
   addOns?: string[];
 }
 
@@ -46,8 +46,10 @@ export interface ScheduleModel extends Model<TSchedule> {
   isScheduleExist(
     bayId: string,
     date: string,
+    timeSlot: string,
+    duration: number,
     excludeId?: string
-  ): Promise<boolean>;
+  ): Promise<TSchedule | null>;
   
   findSchedulesByDateRange(
     dateFrom: string,

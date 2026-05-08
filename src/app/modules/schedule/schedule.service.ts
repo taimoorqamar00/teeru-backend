@@ -1,5 +1,7 @@
 import { Schedule } from './schedule.model';
 import { TSchedule, TScheduleCreate, TScheduleUpdate, TScheduleListQuery, IPaginationResult } from './schedule.interface';
+import { Bay } from '../bay/bay.model';
+import { Booking } from '../booking/booking.model';
 import mongoose from 'mongoose';
 
 const createSchedule = async (payload: TScheduleCreate): Promise<TSchedule> => {
@@ -172,27 +174,69 @@ const getScheduleStatistics = async (dateFrom?: string, dateTo?: string): Promis
 const checkScheduleConflict = async (
   bayId: string,
   date: string,
-  excludeId?: string
+  timeSlot: string,
+  duration: number,
+  excludeId?: string,
 ): Promise<{ conflict: boolean; existingSchedule?: TSchedule }> => {
-  const isExist = await Schedule.isScheduleExist(bayId, date, excludeId);
-  
-  if (isExist) {
-    const existingSchedule = await Schedule.findOne({
-      bayId,
-      date,
-      isDeleted: false,
-      ...(excludeId && { _id: { $ne: excludeId } }),
-    }).populate('bayId', 'name number hardware projector isActive');
+  const conflicting = await Schedule.isScheduleExist(bayId, date, timeSlot, duration, excludeId);
 
-    return {
-      conflict: true,
-      existingSchedule: existingSchedule as TSchedule,
-    };
+  if (conflicting) {
+    return { conflict: true, existingSchedule: conflicting };
   }
 
-  return {
-    conflict: false,
-  };
+  return { conflict: false };
+};
+
+const getAvailableSlots = async (
+  bayId: string,
+  date: string,
+  duration?: number,
+): Promise<TSchedule[]> => {
+  // 1. Fetch all schedule slots for this bay+date (pre-find hook excludes soft-deleted)
+  const filter: any = { bayId, date };
+  if (duration !== undefined) filter.duration = duration;
+
+  const schedules = (await Schedule.find(filter).sort({ timeSlot: 1 }).lean()) as TSchedule[];
+  if (!schedules.length) return [];
+
+  // 2. Resolve bayNumber — bookings are indexed by number, not ObjectId
+  const bay = await Bay.findById(bayId).lean();
+  if (!bay) return [];
+
+  // 3. All active bookings for this bay on this date
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const bookings = await Booking.find({
+    bayNumber: (bay as any).number,
+    bookingDate: { $gte: dayStart, $lte: dayEnd },
+    status: { $in: ['pending', 'confirmed'] },
+  }).lean();
+
+  // 4. Drop slots that overlap with any existing booking (strict interval check)
+  return schedules.filter(slot => {
+    const [sh, sm] = (slot.timeSlot as string).split(':').map(Number);
+    const slotStart = sh * 60 + sm;
+    const slotEnd = slotStart + (slot.duration as number) * 60;
+
+    return !bookings.some(booking => {
+      const [bh, bm] = (booking.startTime as string).split(':').map(Number);
+      const bookingStart = bh * 60 + bm;
+      const bookingEnd = bookingStart + (booking.duration as number) * 60;
+      return slotStart < bookingEnd && bookingStart < slotEnd;
+    });
+  });
+};
+
+const deleteSchedulesByBay = async (bayId: string): Promise<{ deletedCount: number }> => {
+  if (!mongoose.Types.ObjectId.isValid(bayId)) {
+    throw new Error('Invalid bay ID');
+  }
+
+  const result = await Schedule.deleteMany({ bayId });
+  return { deletedCount: result.deletedCount };
 };
 
 export const scheduleService = {
@@ -205,4 +249,6 @@ export const scheduleService = {
   getSchedulesByBay,
   getScheduleStatistics,
   checkScheduleConflict,
+  getAvailableSlots,
+  deleteSchedulesByBay,
 };

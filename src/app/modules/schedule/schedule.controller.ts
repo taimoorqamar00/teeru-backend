@@ -5,19 +5,26 @@ import sendResponse from '../../utils/sendResponse';
 import { scheduleService } from './schedule.service';
 
 const createSchedule = catchAsync(async (req: Request, res: Response) => {
-  const scheduleData = req.body;
-  
-  // Check for schedule conflict
+  const scheduleData: any = { ...req.body };
+
+  // Frontend sends timeSlots array; extract first element as the canonical timeSlot
+  if (!scheduleData.timeSlot && Array.isArray(scheduleData.timeSlots) && scheduleData.timeSlots.length) {
+    scheduleData.timeSlot = scheduleData.timeSlots[0];
+  }
+
+  // Check for time-slot conflict before persisting
   const conflictCheck = await scheduleService.checkScheduleConflict(
     scheduleData.bayId,
-    scheduleData.date
+    scheduleData.date,
+    scheduleData.timeSlot,
+    scheduleData.duration,
   );
 
   if (conflictCheck.conflict) {
     return sendResponse(res, {
       statusCode: httpStatus.CONFLICT,
       success: false,
-      message: 'Schedule already exists for this bay on this date',
+      message: 'This time slot overlaps with an existing schedule for this bay on this date',
       data: conflictCheck.existingSchedule,
     });
   }
@@ -80,7 +87,12 @@ const getScheduleById = catchAsync(async (req: Request, res: Response) => {
 
 const updateSchedule = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData: any = { ...req.body };
+
+  // Frontend sends timeSlots array; extract first element as the canonical timeSlot
+  if (!updateData.timeSlot && Array.isArray(updateData.timeSlots) && updateData.timeSlots.length) {
+    updateData.timeSlot = updateData.timeSlots[0];
+  }
   
   // Validate schedule ID format
   if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -92,21 +104,23 @@ const updateSchedule = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Check for conflict if bayId or date is being updated
-  if (updateData.bayId || updateData.date) {
+  // Re-check conflict whenever any field that affects the time range changes
+  if (updateData.bayId || updateData.date || updateData.timeSlot || updateData.duration !== undefined) {
     const existingSchedule = await scheduleService.getScheduleById(id);
     if (existingSchedule) {
       const conflictCheck = await scheduleService.checkScheduleConflict(
         updateData.bayId || existingSchedule.bayId.toString(),
         updateData.date || existingSchedule.date,
-        id
+        updateData.timeSlot || existingSchedule.timeSlot,
+        updateData.duration ?? existingSchedule.duration,
+        id,
       );
 
       if (conflictCheck.conflict) {
         return sendResponse(res, {
           statusCode: httpStatus.CONFLICT,
           success: false,
-          message: 'Schedule conflict detected for the updated bay and date',
+          message: 'This time slot overlaps with an existing schedule for this bay on this date',
           data: conflictCheck.existingSchedule,
         });
       }
@@ -230,13 +244,13 @@ const getScheduleStatistics = catchAsync(async (req: Request, res: Response) => 
 });
 
 const checkScheduleConflict = catchAsync(async (req: Request, res: Response) => {
-  const { bayId, date, excludeId } = req.query;
-  
-  if (!bayId || !date) {
+  const { bayId, date, timeSlot, duration, excludeId } = req.query;
+
+  if (!bayId || !date || !timeSlot || !duration) {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'bayId and date are required',
+      message: 'bayId, date, timeSlot and duration are required',
       data: null,
     });
   }
@@ -244,7 +258,9 @@ const checkScheduleConflict = catchAsync(async (req: Request, res: Response) => 
   const conflictCheck = await scheduleService.checkScheduleConflict(
     bayId as string,
     date as string,
-    excludeId as string
+    timeSlot as string,
+    Number(duration),
+    excludeId as string,
   );
 
   sendResponse(res, {
@@ -254,6 +270,72 @@ const checkScheduleConflict = catchAsync(async (req: Request, res: Response) => 
       ? 'Schedule conflict detected' 
       : 'No schedule conflict found',
     data: conflictCheck,
+  });
+});
+
+const deleteSchedulesByBay = catchAsync(async (req: Request, res: Response) => {
+  const { bayId } = req.params;
+
+  if (!bayId || !/^[0-9a-fA-F]{24}$/.test(bayId)) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Invalid bay ID format',
+      data: null,
+    });
+  }
+
+  const result = await scheduleService.deleteSchedulesByBay(bayId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `${result.deletedCount} schedule(s) permanently deleted for bay`,
+    data: result,
+  });
+});
+
+const getAvailableSlots = catchAsync(async (req: Request, res: Response) => {
+  const { bayId, date, duration } = req.query;
+
+  if (!bayId || !date) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'bayId and date are required',
+      data: null,
+    });
+  }
+
+  if (!/^[0-9a-fA-F]{24}$/.test(bayId as string)) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Invalid bay ID format',
+      data: null,
+    });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date as string) || isNaN(Date.parse(date as string))) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'date must be in YYYY-MM-DD format',
+      data: null,
+    });
+  }
+
+  const slots = await scheduleService.getAvailableSlots(
+    bayId as string,
+    date as string,
+    duration ? Number(duration) : undefined,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Available slots retrieved successfully',
+    data: slots,
   });
 });
 
@@ -267,4 +349,6 @@ export const scheduleController = {
   getSchedulesByBay,
   getScheduleStatistics,
   checkScheduleConflict,
+  getAvailableSlots,
+  deleteSchedulesByBay,
 };

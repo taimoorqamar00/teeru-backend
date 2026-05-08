@@ -128,11 +128,7 @@ const deleteBay = async (id: string): Promise<TBay | null> => {
     throw new Error('Invalid bay ID');
   }
 
-  const deletedBay = await Bay.findByIdAndUpdate(
-    id,
-    { isDeleted: true, updatedAt: new Date() },
-    { new: true }
-  );
+  const deletedBay = await Bay.findByIdAndDelete(id);
 
   return deletedBay;
 };

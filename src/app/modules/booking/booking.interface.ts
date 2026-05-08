@@ -20,11 +20,12 @@ export interface TBookingCreate {
   customerInfo: TCustomerInfo;
   customerType: TCustomerType;
   bayNumber: TBayNumber;
+  scheduleId?: string; // optional ref to the Schedule slot this booking was made against
   duration: TDuration;
   totalAmount: number;
   paymentMethod: TPaymentMethod;
-  bookingDate: Date;
-  startTime: string; // HH:mm format
+  bookingDate?: Date; // derived from scheduleId if omitted
+  startTime?: string; // derived from scheduleId if omitted
   status?: TBookingStatus;
   notes?: string;
   addOns?: string[];
@@ -41,6 +42,7 @@ export interface TBookingUpdate {
   customerInfo?: Partial<TCustomerInfo>;
   customerType?: TCustomerType;
   bayNumber?: TBayNumber;
+  scheduleId?: string;
   duration?: TDuration;
   totalAmount?: number;
   paymentMethod?: TPaymentMethod;

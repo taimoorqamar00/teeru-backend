@@ -55,15 +55,14 @@ const scheduleSchema = new Schema<TSchedule>(
       type: pricingSchema,
       required: true,
     },
-    timeSlots: {
-      type: [String],
+    timeSlot: {
+      type: String,
       required: true,
       validate: {
-        validator: function (timeSlots: string[]) {
-          // Validate each time slot is in HH:mm format
-          return timeSlots.every(slot => /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slot));
+        validator: function (slot: string) {
+          return /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slot);
         },
-        message: 'All time slots must be in HH:mm format',
+        message: 'Time slot must be in HH:mm format',
       },
     },
     addOns: {
@@ -92,45 +91,64 @@ const scheduleSchema = new Schema<TSchedule>(
 // Indexes for better query performance
 scheduleSchema.index({ bayId: 1 });
 scheduleSchema.index({ date: 1 });
-scheduleSchema.index({ bayId: 1, date: 1 }); // Composite index for bay schedules
+scheduleSchema.index({ bayId: 1, date: 1, timeSlot: 1 }); // one slot per bay per date
 scheduleSchema.index({ isDeleted: 1 });
 
-// Pre-save hook to validate unique schedule per bay per date
+// Pre-save hook to block overlapping time slots on the same bay+date
 scheduleSchema.pre('save', async function (next) {
-  if (this.isNew || this.isModified('bayId') || this.isModified('date')) {
-    const existingSchedule = await Schedule.isScheduleExist(
-      this.bayId.toString(),
-      this.date,
-      this._id
+  const doc = this as any;
+  if (doc.isNew || doc.isModified('bayId') || doc.isModified('date') || doc.isModified('timeSlot') || doc.isModified('duration')) {
+    const conflict = await Schedule.isScheduleExist(
+      doc.bayId.toString(),
+      doc.date,
+      doc.timeSlot,
+      doc.duration,
+      doc._id.toString(),
     );
-    
-    if (existingSchedule) {
-      const error = new Error('Schedule already exists for this bay on this date');
-      return next(error);
+
+    if (conflict) {
+      return next(new Error('This time slot overlaps with an existing schedule for this bay on this date'));
     }
   }
   next();
 });
 
-// Static method to check schedule existence
+// Returns the first conflicting schedule, or null if the slot is free.
+// Two slots conflict when newStart < existEnd && existStart < newEnd (strict — boundary-sharing is allowed).
 scheduleSchema.statics.isScheduleExist = async function (
   this: any,
   bayId: string,
   date: string,
-  excludeId?: string
-): Promise<boolean> {
-  const query: any = {
-    bayId,
-    date,
-    isDeleted: false,
-  };
+  timeSlot: string,
+  duration: number,
+  excludeId?: string,
+): Promise<TSchedule | null> {
+  if (!timeSlot) return null;
 
-  if (excludeId) {
-    query._id = { $ne: excludeId };
+  const [newH, newM] = timeSlot.split(':').map(Number);
+  const newStart = newH * 60 + newM;
+  const newEnd = newStart + duration * 60;
+
+  const query: any = { bayId, date, isDeleted: false };
+  if (excludeId) query._id = { $ne: excludeId };
+
+  const existing: TSchedule[] = await this.find(query).lean();
+
+  for (const doc of existing) {
+    // Support legacy documents stored with timeSlots[] before the schema migration
+    const slotStr: string | undefined = (doc as any).timeSlot ?? (doc as any).timeSlots?.[0];
+    if (!slotStr) continue;
+
+    const [exH, exM] = slotStr.split(':').map(Number);
+    const exStart = exH * 60 + exM;
+    const exEnd = exStart + (doc.duration as number) * 60;
+
+    if (newStart < exEnd && exStart < newEnd) {
+      return doc;
+    }
   }
 
-  const existingSchedule = await this.findOne(query);
-  return !!existingSchedule;
+  return null;
 } as any;
 
 // Static method to find schedules by date range
@@ -154,7 +172,7 @@ scheduleSchema.statics.findSchedulesByDateRange = async function (
 
   return await this.find(query)
     .populate('bayId', 'name number hardware projector isActive')
-    .sort({ date: 1, 'timeSlots.0': 1 });
+    .sort({ date: 1, timeSlot: 1 });
 } as any;
 
 // Static method to find schedules by bay

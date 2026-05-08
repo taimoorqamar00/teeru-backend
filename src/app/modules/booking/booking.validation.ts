@@ -44,15 +44,17 @@ const createBookingValidationSchema = z.object({
       }),
     bookingDate: z
       .string()
-      .refine((date) => !isNaN(Date.parse(date)), {
-        message: 'Invalid booking date format',
-      })
-      .transform((date) => new Date(date)),
+      .refine((date) => !isNaN(Date.parse(date)), { message: 'Invalid booking date format' })
+      .transform((date) => new Date(date))
+      .optional(),
     startTime: z
       .string()
-      .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: 'Start time must be in HH:mm format (24-hour)',
-      }),
+      .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Start time must be in HH:mm format (24-hour)' })
+      .optional(),
+    scheduleId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, { message: 'Invalid schedule ID format' })
+      .optional(),
     status: z
       .enum(['pending', 'confirmed', 'cancelled', 'completed'])
       .optional()
@@ -61,7 +63,10 @@ const createBookingValidationSchema = z.object({
       .string()
       .max(500, { message: 'Notes must be less than 500 characters' })
       .optional(),
-  }),
+  }).refine(
+    (data) => data.scheduleId || (data.bookingDate && data.startTime),
+    { message: 'Provide scheduleId or both bookingDate and startTime', path: ['scheduleId'] },
+  ),
 });
 
 // Update booking validation

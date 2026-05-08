@@ -1,5 +1,6 @@
 import { Booking } from './booking.model';
 import { TBooking, TBookingCreate, TBookingUpdate, TBookingListQuery, TBayNumber, IPaginationResult } from './booking.interface';
+import { Schedule } from '../schedule/schedule.model';
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
 import { decrementMemberHours } from '../membership/membership.service';
@@ -18,7 +19,18 @@ const ADD_ON_PRICES: Record<string, number> = {
 };
 
 const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
-  // Validate and calculate total amount if not provided
+  // Derive startTime and bookingDate from the schedule slot when not provided directly
+  if (payload.scheduleId && (!payload.startTime || !payload.bookingDate)) {
+    const schedule = await Schedule.findById(payload.scheduleId).lean() as any;
+    if (!schedule) throw new AppError(404, 'Schedule slot not found');
+    if (!payload.startTime) payload.startTime = schedule.timeSlot;
+    if (!payload.bookingDate) payload.bookingDate = new Date(schedule.date);
+  }
+
+  if (!payload.startTime || !payload.bookingDate) {
+    throw new AppError(400, 'startTime and bookingDate are required');
+  }
+
   if (!payload.totalAmount) {
     payload.totalAmount = BAY_RATES[payload.bayNumber as keyof typeof BAY_RATES] * payload.duration;
   }
@@ -83,10 +95,11 @@ const getAllBookings = async (query: TBookingListQuery): Promise<IPaginationResu
   // Execute query with pagination
   const [bookings, total] = await Promise.all([
     Booking.find(filter)
+      .populate('scheduleId', 'timeSlot duration pricing addOns date')
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .lean(),
+      .lean({ virtuals: true }),
     Booking.countDocuments(filter),
   ]);
 
@@ -108,7 +121,8 @@ const getBookingById = async (id: string): Promise<TBooking | null> => {
     throw new Error('Invalid booking ID');
   }
 
-  const booking = await Booking.findById(id);
+  const booking = await Booking.findById(id)
+    .populate('scheduleId', 'timeSlot duration pricing addOns date');
   return booking;
 };
 
@@ -202,7 +216,9 @@ const getTodayBookings = async (): Promise<TBooking[]> => {
       $lt: tomorrow,
     },
     isDeleted: false,
-  }).sort({ startTime: 1 });
+  })
+    .populate('scheduleId', 'timeSlot duration pricing addOns date')
+    .sort({ startTime: 1 });
 };
 
 const getUpcomingBookings = async (limit: number = 10): Promise<TBooking[]> => {
@@ -213,6 +229,7 @@ const getUpcomingBookings = async (limit: number = 10): Promise<TBooking[]> => {
     status: { $in: ['pending', 'confirmed'] },
     isDeleted: false,
   })
+    .populate('scheduleId', 'timeSlot duration pricing addOns date')
     .sort({ bookingDate: 1, startTime: 1 })
     .limit(limit);
 };
@@ -283,6 +300,7 @@ const extendSession = async (
   if (booking.status !== 'confirmed') {
     throw new AppError(400, 'Only confirmed bookings can be extended');
   }
+  if (!booking.startTime) throw new AppError(400, 'Booking has no start time');
 
   const [h, m] = booking.startTime.split(':').map(Number);
   const start = new Date(booking.bookingDate as Date);

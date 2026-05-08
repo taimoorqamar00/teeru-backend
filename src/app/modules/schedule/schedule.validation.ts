@@ -31,18 +31,26 @@ const createScheduleValidationSchema = z.object({
       .min(1, { message: 'Duration must be at least 1 hour' })
       .max(24, { message: 'Duration cannot exceed 24 hours' }),
     pricing: pricingSchema,
+    // Accept either shape: timeSlot (new) or timeSlots array (legacy)
+    timeSlot: z
+      .string()
+      .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'timeSlot must be in HH:mm format' })
+      .optional(),
     timeSlots: z
-      .array(z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: 'Each time slot must be in HH:mm format',
-      }))
-      .min(1, { message: 'At least one time slot is required' })
-      .max(48, { message: 'Maximum 48 time slots allowed' }),
+      .array(
+        z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Each time slot must be in HH:mm format' }),
+      )
+      .min(1)
+      .optional(),
     addOns: z
       .array(z.string().max(100, { message: 'Each add-on must be less than 100 characters' }))
       .max(50, { message: 'Maximum 50 add-ons allowed' })
       .optional()
       .default([]),
-  }),
+  }).refine(
+    (data) => data.timeSlot || (data.timeSlots && data.timeSlots.length > 0),
+    { message: 'timeSlot or timeSlots is required', path: ['timeSlot'] },
+  ),
 });
 
 // Update schedule validation
@@ -59,6 +67,16 @@ const updateScheduleValidationSchema = z.object({
         message: 'Invalid date format',
       })
       .optional(),
+    timeSlot: z
+      .string()
+      .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'timeSlot must be in HH:mm format' })
+      .optional(),
+    timeSlots: z
+      .array(
+        z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Each time slot must be in HH:mm format' }),
+      )
+      .min(1)
+      .optional(),
     duration: z
       .number()
       .int()
@@ -66,13 +84,6 @@ const updateScheduleValidationSchema = z.object({
       .max(24, { message: 'Duration cannot exceed 24 hours' })
       .optional(),
     pricing: pricingSchema.optional(),
-    timeSlots: z
-      .array(z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: 'Each time slot must be in HH:mm format',
-      }))
-      .min(1, { message: 'At least one time slot is required' })
-      .max(48, { message: 'Maximum 48 time slots allowed' })
-      .optional(),
     addOns: z
       .array(z.string().max(100, { message: 'Each add-on must be less than 100 characters' }))
       .max(50, { message: 'Maximum 50 add-ons allowed' })

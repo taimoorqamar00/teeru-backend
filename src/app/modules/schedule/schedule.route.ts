@@ -17,6 +17,11 @@ router.get(
   scheduleController.checkScheduleConflict
 );
 
+router.get(
+  '/available-slots',
+  scheduleController.getAvailableSlots
+);
+
 // Protected routes (auth required for management operations)
 router.post(
   '/',
@@ -36,6 +41,12 @@ router.get(
   auth('admin'),
   validateRequest(scheduleValidation.getScheduleByIdValidationSchema),
   scheduleController.getSchedulesByBay
+);
+
+router.delete(
+  '/bay/:bayId',
+  auth('admin'),
+  scheduleController.deleteSchedulesByBay
 );
 
 router.get(

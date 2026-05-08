@@ -40,6 +40,11 @@ const bookingSchema = new Schema<TBooking>(
       enum: [1, 2, 3, 4],
       required: true,
     },
+    scheduleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Schedule',
+      required: false,
+    } as any,
     duration: {
       type: Number,
       required: true,
@@ -165,13 +170,10 @@ bookingSchema.statics.isBookingExist = async function (
     const existingStartTotalMinutes = existingStartHours * 60 + existingStartMinutes;
     const existingEndTotalMinutes = existingStartTotalMinutes + (booking.duration * 60);
 
-    // Check for time overlap
-    if (
-      (startTotalMinutes >= existingStartTotalMinutes && startTotalMinutes < existingEndTotalMinutes) ||
-      (endTotalMinutes > existingStartTotalMinutes && endTotalMinutes <= existingEndTotalMinutes) ||
-      (startTotalMinutes <= existingStartTotalMinutes && endTotalMinutes >= existingEndTotalMinutes)
-    ) {
-      return true; // Overlap found
+    // Strict overlap: sessions that share only a boundary point (one ends at 11:00,
+    // the next starts at 11:00) are not considered conflicting.
+    if (startTotalMinutes < existingEndTotalMinutes && existingStartTotalMinutes < endTotalMinutes) {
+      return true;
     }
   }
 
