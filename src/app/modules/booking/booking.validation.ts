@@ -28,8 +28,7 @@ const createBookingValidationSchema = z.object({
     bayNumber: z
       .number()
       .int()
-      .min(1, { message: 'Bay number must be between 1 and 4' })
-      .max(4, { message: 'Bay number must be between 1 and 4' }),
+      .min(1, { message: 'Bay number must be a positive integer' }),
     duration: z
       .number()
       .int()
@@ -80,7 +79,6 @@ const updateBookingValidationSchema = z.object({
       .number()
       .int()
       .min(1)
-      .max(4)
       .optional(),
     duration: z
       .number()
@@ -155,8 +153,8 @@ const listBookingsQueryValidationSchema = z.object({
     bayNumber: z
       .string()
       .transform((val) => (val ? parseInt(val, 10) : undefined))
-      .refine((val) => val === undefined || (val >= 1 && val <= 4), {
-        message: 'Bay number must be between 1 and 4',
+      .refine((val) => val === undefined || val >= 1, {
+        message: 'Bay number must be a positive integer',
       })
       .optional(),
     dateFrom: z
@@ -186,8 +184,8 @@ const checkAvailabilityValidationSchema = z.object({
     bayNumber: z
       .string()
       .transform((val) => parseInt(val, 10))
-      .refine((val) => val >= 1 && val <= 4, {
-        message: 'Bay number must be between 1 and 4',
+      .refine((val) => val >= 1, {
+        message: 'Bay number must be a positive integer',
       }),
     date: z
       .string()

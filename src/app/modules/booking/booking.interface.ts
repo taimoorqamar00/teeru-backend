@@ -6,7 +6,7 @@ export type TPaymentMethod = 'wave' | 'orange-money';
 
 export type TBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
-export type TBayNumber = 1 | 2 | 3 | 4;
+export type TBayNumber = number;
 
 export type TDuration = number; // in hours, supports 0.5 increments
 

@@ -39,9 +39,9 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
 
   // Enrich with live booking data (single query, no N+1)
   const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  todayStart.setUTCHours(0, 0, 0, 0);
   const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
   const bayNumbers = bays.map((b) => b.number);
   const todayBookings = await Booking.find({
@@ -69,7 +69,7 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
     for (const booking of bayBookings) {
       const [h, m] = booking.startTime.split(':').map(Number);
       const start = new Date(booking.bookingDate as Date);
-      start.setHours(h, m, 0, 0);
+      start.setUTCHours(h, m, 0, 0);
       const end = new Date(start.getTime() + booking.duration * 3600000);
 
       if (start <= now && now < end) {
@@ -77,7 +77,7 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
           _id: booking._id,
           customerName: booking.customerInfo?.name,
           remainingTime: Math.ceil((end.getTime() - now.getTime()) / 60000),
-          endTime: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+          endTime: `${end.getUTCHours().toString().padStart(2, '0')}:${end.getUTCMinutes().toString().padStart(2, '0')}`,
           addOns: booking.addOns ?? [],
         };
       } else if (start > now) {
@@ -145,9 +145,9 @@ const getBaySchedule = async (date: string): Promise<TBaySchedule[]> => {
   // Get bookings for the specified date
   const Booking = mongoose.model('Booking');
   const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  endOfDay.setUTCHours(23, 59, 59, 999);
 
   const bookings = await Booking.find({
     bookingDate: {

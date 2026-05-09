@@ -205,9 +205,9 @@ const getAvailableSlots = async (
 
   // 3. All active bookings for this bay on this date
   const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
+  dayStart.setUTCHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
+  dayEnd.setUTCHours(23, 59, 59, 999);
 
   const bookings = await Booking.find({
     bayNumber: (bay as any).number,

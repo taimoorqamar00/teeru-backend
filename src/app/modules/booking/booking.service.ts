@@ -32,7 +32,8 @@ const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
   }
 
   if (!payload.totalAmount) {
-    payload.totalAmount = BAY_RATES[payload.bayNumber as keyof typeof BAY_RATES] * payload.duration;
+    const rate = BAY_RATES[payload.bayNumber as keyof typeof BAY_RATES] ?? 25000;
+    payload.totalAmount = rate * payload.duration;
   }
 
   const booking = await Booking.create(payload);
@@ -206,9 +207,9 @@ const checkBayAvailability = async (
 
 const getTodayBookings = async (): Promise<TBooking[]> => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
   return await Booking.find({
     bookingDate: {
@@ -304,7 +305,7 @@ const extendSession = async (
 
   const [h, m] = booking.startTime.split(':').map(Number);
   const start = new Date(booking.bookingDate as Date);
-  start.setHours(h, m, 0, 0);
+  start.setUTCHours(h, m, 0, 0);
   const currentEnd = new Date(start.getTime() + booking.duration * 3600000);
   const now = new Date();
 

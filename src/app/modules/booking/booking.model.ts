@@ -37,7 +37,7 @@ const bookingSchema = new Schema<TBooking>(
     },
     bayNumber: {
       type: Number,
-      enum: [1, 2, 3, 4],
+      min: 1,
       required: true,
     },
     scheduleId: {
@@ -112,6 +112,7 @@ bookingSchema.index({ isDeleted: 1 });
 
 // Virtual for endTime calculation
 bookingSchema.virtual('endTime').get(function () {
+  if (!this.startTime) return null;
   const [hours, minutes] = this.startTime.split(':').map(Number);
   const endHours = hours + this.duration;
   const endMinutes = minutes;
@@ -124,9 +125,10 @@ bookingSchema.virtual('endTime').get(function () {
 // Pre-save hook to validate booking availability
 bookingSchema.pre('save', async function (next) {
   if (this.isNew || this.isModified('bayNumber') || this.isModified('bookingDate') || this.isModified('startTime') || this.isModified('duration')) {
+    if (!this.startTime || !this.bookingDate) return next();
     const existingBooking = await Booking.isBookingExist(
       this.bayNumber,
-      this.bookingDate,
+      this.bookingDate as Date,
       this.startTime,
       this.duration,
       this._id
