@@ -10,12 +10,12 @@ const pricingSchema = new Schema({
   },
   premiumRate: {
     type: Number,
-    required: true,
+    required: false,
     min: 0,
   },
   weekendRate: {
     type: Number,
-    required: true,
+    required: false,
     min: 0,
   },
 }, { _id: false });
@@ -65,6 +65,11 @@ const scheduleSchema = new Schema<TSchedule>(
         message: 'Time slot must be in HH:mm format',
       },
     },
+    pricingRuleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PricingRule',
+      required: false,
+    } as any,
     addOns: {
       type: [String],
       default: [],

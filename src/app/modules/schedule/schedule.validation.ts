@@ -7,10 +7,12 @@ const pricingSchema = z.object({
     .min(0, { message: 'Standard rate must be a positive number' }),
   premiumRate: z
     .number()
-    .min(0, { message: 'Premium rate must be a positive number' }),
+    .min(0, { message: 'Premium rate must be a positive number' })
+    .optional(),
   weekendRate: z
     .number()
-    .min(0, { message: 'Weekend rate must be a positive number' }),
+    .min(0, { message: 'Weekend rate must be a positive number' })
+    .optional(),
 });
 
 // Create schedule validation
@@ -42,6 +44,10 @@ const createScheduleValidationSchema = z.object({
       )
       .min(1)
       .optional(),
+    pricingRuleId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, { message: 'Invalid pricing rule ID format' })
+      .optional(),
     addOns: z
       .array(z.string().max(100, { message: 'Each add-on must be less than 100 characters' }))
       .max(50, { message: 'Maximum 50 add-ons allowed' })
@@ -55,6 +61,11 @@ const createScheduleValidationSchema = z.object({
 
 // Update schedule validation
 const updateScheduleValidationSchema = z.object({
+  params: z.object({
+    id: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, { message: 'Invalid schedule ID format' }),
+  }),
   body: z.object({
     bayId: z
       .string()
@@ -84,6 +95,10 @@ const updateScheduleValidationSchema = z.object({
       .max(24, { message: 'Duration cannot exceed 24 hours' })
       .optional(),
     pricing: pricingSchema.optional(),
+    pricingRuleId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, { message: 'Invalid pricing rule ID format' })
+      .optional(),
     addOns: z
       .array(z.string().max(100, { message: 'Each add-on must be less than 100 characters' }))
       .max(50, { message: 'Maximum 50 add-ons allowed' })

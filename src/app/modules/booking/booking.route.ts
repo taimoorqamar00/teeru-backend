@@ -14,7 +14,7 @@ router.post(
 );
 
 // Protected routes (auth required)
-router.post('/', (req, res, next) => {
+router.post('/', (req, _res, next) => {
   console.log('=== BOOKING ROUTE DEBUG ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
@@ -67,6 +67,12 @@ router.get(
 );
 
 router.get(
+  '/live-sessions',
+  auth('admin'),
+  bookingController.getLiveSessions
+);
+
+router.get(
   '/date-range',
   auth('admin'),
   bookingController.getBookingsByDateRange
@@ -76,6 +82,12 @@ router.get(
   '/:id',
   auth('user', 'admin'),
   bookingController.getBookingById
+);
+
+router.patch(
+  '/:id/start',
+  auth('admin'),
+  bookingController.startSession
 );
 
 router.patch(

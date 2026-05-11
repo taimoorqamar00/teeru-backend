@@ -122,6 +122,15 @@ export const initSocketIO = async (server: HttpServer): Promise<void> => {
       console.log(`User ${userId} connected with socket ID: ${socket.id}`);
     });
 
+    // Admin live-control room — emit 'join:live-control' to subscribe to real-time session events.
+    socket.on("join:live-control", () => {
+      if (socket.user?.role === 'admin') {
+        socket.join('live-control');
+        socket.emit('live-control:joined', { message: 'Subscribed to live session updates' });
+        console.log(`Admin ${socket.user._id} joined live-control room`);
+      }
+    });
+
       //----------------------online array send for front end------------------------//
       io.emit('onlineUser', Array.from(connectedUsers));
 
@@ -182,8 +191,12 @@ export const initSocketIO = async (server: HttpServer): Promise<void> => {
 // Export the Socket.IO instance
 export { io };
 
-
-
+// Broadcast a session lifecycle event to all clients in the live-control room.
+// Silently no-ops if Socket.IO has not been initialised yet.
+export const emitSessionEvent = (event: string, data: any): void => {
+  if (!io) return;
+  io.to('live-control').emit(event, data);
+};
 
 export const emitNotification = async ({
   userId,

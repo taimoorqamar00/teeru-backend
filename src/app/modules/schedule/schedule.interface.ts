@@ -2,8 +2,8 @@ import { Model } from 'mongoose';
 
 export interface TPricing {
   standardRate: number;
-  premiumRate: number;
-  weekendRate: number;
+  premiumRate?: number;
+  weekendRate?: number;
 }
 
 export interface TScheduleCreate {
@@ -12,6 +12,7 @@ export interface TScheduleCreate {
   timeSlot: string; // HH:mm start time — one document per slot
   duration: number; // in hours (integer)
   pricing: TPricing;
+  pricingRuleId?: string; // optional ref to PricingRule
   addOns?: string[];
 }
 
@@ -28,6 +29,7 @@ export interface TScheduleUpdate {
   timeSlot?: string;
   duration?: number;
   pricing?: TPricing;
+  pricingRuleId?: string;
   addOns?: string[];
 }
 

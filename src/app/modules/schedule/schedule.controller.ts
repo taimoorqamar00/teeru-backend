@@ -5,37 +5,53 @@ import sendResponse from '../../utils/sendResponse';
 import { scheduleService } from './schedule.service';
 
 const createSchedule = catchAsync(async (req: Request, res: Response) => {
-  const scheduleData: any = { ...req.body };
+  const { timeSlots, timeSlot: incomingTimeSlot, ...rest } = req.body;
 
-  // Frontend sends timeSlots array; extract first element as the canonical timeSlot
-  if (!scheduleData.timeSlot && Array.isArray(scheduleData.timeSlots) && scheduleData.timeSlots.length) {
-    scheduleData.timeSlot = scheduleData.timeSlots[0];
-  }
+  // Normalise to an array of slots — one document will be created per slot
+  const slots: string[] = Array.isArray(timeSlots) && timeSlots.length
+    ? timeSlots
+    : incomingTimeSlot
+      ? [incomingTimeSlot]
+      : [];
 
-  // Check for time-slot conflict before persisting
-  const conflictCheck = await scheduleService.checkScheduleConflict(
-    scheduleData.bayId,
-    scheduleData.date,
-    scheduleData.timeSlot,
-    scheduleData.duration,
-  );
-
-  if (conflictCheck.conflict) {
+  if (!slots.length) {
     return sendResponse(res, {
-      statusCode: httpStatus.CONFLICT,
+      statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'This time slot overlaps with an existing schedule for this bay on this date',
-      data: conflictCheck.existingSchedule,
+      message: 'At least one time slot is required',
+      data: null,
     });
   }
-  
-  const schedule = await scheduleService.createSchedule(scheduleData);
+
+  // Check conflicts for every slot before persisting any
+  for (const slot of slots) {
+    const conflictCheck = await scheduleService.checkScheduleConflict(
+      rest.bayId,
+      rest.date,
+      slot,
+      rest.duration,
+    );
+
+    if (conflictCheck.conflict) {
+      return sendResponse(res, {
+        statusCode: httpStatus.CONFLICT,
+        success: false,
+        message: `Time slot ${slot} overlaps with an existing schedule for this bay on this date`,
+        data: conflictCheck.existingSchedule,
+      });
+    }
+  }
+
+  // Create one schedule document per slot
+  const schedules = await Promise.all(
+    slots.map(slot => scheduleService.createSchedule({ ...rest, timeSlot: slot })),
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: 'Schedule created successfully',
-    data: schedule,
+    message: schedules.length === 1 ? 'Schedule created successfully' : `${schedules.length} schedules created successfully`,
+    data: schedules.length === 1 ? schedules[0] : schedules,
   });
 });
 
@@ -87,11 +103,14 @@ const getScheduleById = catchAsync(async (req: Request, res: Response) => {
 
 const updateSchedule = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updateData: any = { ...req.body };
+  const { timeSlots, timeSlot: incomingTimeSlot, ...rest } = req.body;
+  const updateData: any = { ...rest };
 
-  // Frontend sends timeSlots array; extract first element as the canonical timeSlot
-  if (!updateData.timeSlot && Array.isArray(updateData.timeSlots) && updateData.timeSlots.length) {
-    updateData.timeSlot = updateData.timeSlots[0];
+  // Resolve timeSlot — each schedule document holds exactly one slot
+  if (incomingTimeSlot) {
+    updateData.timeSlot = incomingTimeSlot;
+  } else if (Array.isArray(timeSlots) && timeSlots.length) {
+    updateData.timeSlot = timeSlots[0];
   }
   
   // Validate schedule ID format
@@ -108,8 +127,13 @@ const updateSchedule = catchAsync(async (req: Request, res: Response) => {
   if (updateData.bayId || updateData.date || updateData.timeSlot || updateData.duration !== undefined) {
     const existingSchedule = await scheduleService.getScheduleById(id);
     if (existingSchedule) {
+      const existingBayId =
+        typeof existingSchedule.bayId === 'object' && existingSchedule.bayId !== null
+          ? (existingSchedule.bayId as any)._id.toString()
+          : String(existingSchedule.bayId);
+
       const conflictCheck = await scheduleService.checkScheduleConflict(
-        updateData.bayId || existingSchedule.bayId.toString(),
+        updateData.bayId || existingBayId,
         updateData.date || existingSchedule.date,
         updateData.timeSlot || existingSchedule.timeSlot,
         updateData.duration ?? existingSchedule.duration,

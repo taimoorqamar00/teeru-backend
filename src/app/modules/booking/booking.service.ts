@@ -4,6 +4,8 @@ import { Schedule } from '../schedule/schedule.model';
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
 import { decrementMemberHours } from '../membership/membership.service';
+import { emitSessionEvent } from '../../../socketIo';
+import { computeSessionProgress } from './session.timer';
 
 // Pricing constants (can be moved to config)
 const BAY_RATES = {
@@ -338,6 +340,18 @@ const extendSession = async (
   }
 
   await booking.save();
+
+  const progress = computeSessionProgress(booking.startTime!, booking.bookingDate as Date, booking.duration);
+  emitSessionEvent('session:extended', {
+    bookingId: id,
+    bayNumber: booking.bayNumber,
+    customerInfo: booking.customerInfo,
+    duration: booking.duration,
+    totalAmount: booking.totalAmount,
+    addOns: booking.addOns,
+    ...progress,
+  });
+
   return booking;
 };
 
@@ -354,7 +368,152 @@ const endSession = async (id: string): Promise<TBooking> => {
 
   booking.status = 'completed';
   await booking.save();
+
+  emitSessionEvent('session:ended', {
+    bookingId: id,
+    bayNumber: booking.bayNumber,
+    customerInfo: booking.customerInfo,
+    endedAt: new Date().toISOString(),
+  });
+
   return booking;
+};
+
+const startSession = async (id: string): Promise<TBooking> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Invalid booking ID');
+  }
+
+  const booking = await Booking.findById(id);
+  if (!booking) throw new AppError(404, 'Booking not found');
+  if (booking.status === 'confirmed') {
+    throw new AppError(400, 'Session is already running');
+  }
+  if (!['pending'].includes(booking.status as string)) {
+    throw new AppError(400, 'Only pending bookings can be started');
+  }
+
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+
+  booking.status = 'confirmed';
+  booking.startTime = `${hh}:${mm}`;
+  booking.bookingDate = now;
+  await booking.save();
+
+  const progress = computeSessionProgress(booking.startTime, booking.bookingDate as Date, booking.duration);
+  emitSessionEvent('session:started', {
+    bookingId: id,
+    bayNumber: booking.bayNumber,
+    customerInfo: booking.customerInfo,
+    duration: booking.duration,
+    totalAmount: booking.totalAmount,
+    ...progress,
+  });
+
+  return booking;
+};
+
+const getLiveSessions = async () => {
+  const now = new Date();
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+
+  const todayBookings = await Booking.find({
+    bookingDate: { $gte: todayStart, $lt: todayEnd },
+    status: { $in: ['confirmed', 'pending'] },
+    isDeleted: false,
+  })
+    .populate('scheduleId', 'timeSlot duration pricing addOns date')
+    .sort({ startTime: 1 })
+    .lean({ virtuals: true });
+
+  const BAY_NUMBERS = [1, 2, 3, 4];
+
+  const bays = BAY_NUMBERS.map((bayNumber) => {
+    const bayBookings = todayBookings.filter((b: any) => b.bayNumber === bayNumber);
+    let currentSession: any = null;
+    let nextSession: any = null;
+    let status: 'occupied' | 'free' | 'upcoming' = 'free';
+
+    for (const booking of bayBookings) {
+      const [h, m] = (booking.startTime as string).split(':').map(Number);
+      const start = new Date(booking.bookingDate as Date);
+      start.setUTCHours(h, m, 0, 0);
+      const end = new Date(start.getTime() + (booking.duration as number) * 3_600_000);
+
+      if ((booking.status === 'confirmed' || booking.status === 'pending') && now >= start && now < end) {
+        const progress = computeSessionProgress(
+          booking.startTime as string,
+          booking.bookingDate as Date,
+          booking.duration as number,
+        );
+        const scheduleDoc = booking.scheduleId as any;
+        currentSession = {
+          bookingId: (booking as any)._id,
+          ...booking,
+          slot: {
+            startTime: booking.startTime,
+            endTime: progress.endTime,
+            duration: booking.duration,
+            scheduleSlot: scheduleDoc?.timeSlot ?? null,
+            scheduleDate: scheduleDoc?.date ?? null,
+          },
+          customer: {
+            name: (booking.customerInfo as any).name,
+            phone: (booking.customerInfo as any).phone,
+            email: (booking.customerInfo as any).email ?? null,
+            type: booking.customerType,
+          },
+          ...progress,
+          needsConfirmation: booking.status === 'pending',
+        };
+        status = 'occupied';
+      } else if (now < start && !nextSession) {
+        const scheduleDoc = booking.scheduleId as any;
+        nextSession = {
+          bookingId: (booking as any)._id,
+          slot: {
+            startTime: booking.startTime,
+            duration: booking.duration,
+            scheduleSlot: scheduleDoc?.timeSlot ?? null,
+            scheduleDate: scheduleDoc?.date ?? null,
+          },
+          customer: {
+            name: (booking.customerInfo as any).name,
+            phone: (booking.customerInfo as any).phone,
+            email: (booking.customerInfo as any).email ?? null,
+            type: booking.customerType,
+          },
+          customerInfo: booking.customerInfo,
+          customerType: booking.customerType,
+          bayNumber: booking.bayNumber,
+          startTime: booking.startTime,
+          duration: booking.duration,
+          totalAmount: booking.totalAmount,
+          paymentMethod: booking.paymentMethod,
+          addOns: booking.addOns,
+          notes: booking.notes ?? null,
+          bookingDate: booking.bookingDate,
+          status: booking.status,
+        };
+        if (status !== 'occupied') status = 'upcoming';
+      }
+    }
+
+    return { bayNumber, status, currentSession, nextSession };
+  });
+
+  const summary = {
+    totalOccupied: bays.filter((b) => b.status === 'occupied').length,
+    totalFree: bays.filter((b) => b.status === 'free').length,
+    totalUpcoming: bays.filter((b) => b.status === 'upcoming').length,
+  };
+
+  return { bays, summary, generatedAt: now.toISOString() };
 };
 
 export const bookingService = {
@@ -368,6 +527,8 @@ export const bookingService = {
   getTodayBookings,
   getUpcomingBookings,
   getBookingStatistics,
+  startSession,
   extendSession,
   endSession,
+  getLiveSessions,
 };

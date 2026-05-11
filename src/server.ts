@@ -3,10 +3,10 @@ import mongoose from 'mongoose';
 import app from './app';
 import colors from 'colors'; // Ensure correct import
 import config from './app/config';
-import socketIO from "socket.io"
 import { initSocketIO } from './socketIo';
 import createDefaultAdmin from './app/DB/createDefaultAdmin';
 import seedMembershipPlans from './app/DB/seedMembershipPlans';
+import { startSessionTimer } from './app/modules/booking/session.timer';
 
 // Create a new HTTP server
 const socketServer = createServer();
@@ -38,6 +38,7 @@ async function main() {
 
     // Initialize Socket.IO
     initSocketIO(socketServer);
+    startSessionTimer();
     
 
      

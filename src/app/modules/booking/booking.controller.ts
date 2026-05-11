@@ -173,7 +173,7 @@ const checkBayAvailability = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getTodayBookings = catchAsync(async (req: Request, res: Response) => {
+const getTodayBookings = catchAsync(async (_req: Request, res: Response) => {
   const bookings = await bookingService.getTodayBookings();
 
   sendResponse(res, {
@@ -240,6 +240,30 @@ const getBookingsByDateRange = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
+const getLiveSessions = catchAsync(async (_req: Request, res: Response) => {
+  const data = await bookingService.getLiveSessions();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Live session data retrieved successfully',
+    data,
+  });
+});
+
+const startSession = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const booking = await bookingService.startSession(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Session started successfully',
+    data: booking,
+  });
+});
+
 const extendSession = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { duration, addOns } = req.body;
@@ -279,6 +303,8 @@ export const bookingController = {
   getUpcomingBookings,
   getBookingStatistics,
   getBookingsByDateRange,
+  getLiveSessions,
+  startSession,
   extendSession,
   endSession,
 };
