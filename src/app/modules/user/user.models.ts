@@ -68,6 +68,11 @@ const userSchema = new Schema<TUser>(
       type: [cardSchema],
       default: [],
     },
+    permissions: {
+      type: [String],
+      enum: ['view_bookings', 'manage_checkins', 'manage_bays', 'view_finance'],
+      default: ['view_bookings', 'manage_checkins', 'manage_bays'],
+    },
   },
   {
     timestamps: true,

@@ -39,12 +39,14 @@ const login = async (payload: TLogin) => {
     fullName?: string;
     email: string;
     phone?: string;
+    permissions?: string[];
   } = {
     fullName: user?.fullName,
     email: user.email,
     phone: user.phone,
     userId: user?._id?.toString() as string,
     role: user?.role,
+    permissions: user?.permissions || [],
   };
 
 
@@ -330,12 +332,14 @@ const refreshToken = async (token: string) => {
     fullName?: string;
     email: string;
     phone?: string;
+    permissions?: string[];
   } = {
     fullName: activeUser?.fullName,
     email: activeUser.email,
     phone: activeUser.phone,
     userId: activeUser?._id?.toString() as string,
     role: activeUser?.role,
+    permissions: activeUser?.permissions || [],
   };
 
   const accessToken = createToken({

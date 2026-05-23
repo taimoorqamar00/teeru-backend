@@ -24,7 +24,8 @@ export interface TUserCreate {
   role: string;
   phone: string;
   gender: 'male' | 'female' | 'other';
-    cards?: TCard[]; // <- Add this line
+  cards?: TCard[];
+  permissions?: string[];
 }
 
 export interface TUser extends TUserCreate {

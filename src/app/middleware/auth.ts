@@ -7,10 +7,6 @@ import { User } from '../modules/user/user.models';
 
 const auth = (...userRoles: string[]) => {
   return catchAsync(async (req, res, next) => {
-    console.log('=== AUTH MIDDLEWARE DEBUG ===');
-    console.log('req.body at auth start:', req.body);
-    console.log('typeof req.body:', typeof req.body);
-    
     const token: any = req.headers?.authorization || req?.headers?.token;
 
     if (!token) {
@@ -30,12 +26,20 @@ const auth = (...userRoles: string[]) => {
       throw new AppError(httpStatus.NOT_FOUND, 'user not found');
     }
 
-    if (userRoles && !userRoles.includes(role)) {
-      console.log("execute this line")
-      throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized');
+    // Allow access if:
+    // 1. User's role is in the allowed roles list, OR
+    // 2. User is a staff member with permissions (staff can access admin routes based on permissions)
+    if (userRoles && userRoles.length > 0 && !userRoles.includes(role)) {
+      // If the user is staff and admin is in the allowed roles, let them through
+      // Permission-level checks will be handled by checkPermission middleware
+      if (role === 'staff' && userRoles.includes('admin')) {
+        // Staff with permissions can access admin-level routes
+        // Actual permission checks happen via checkPermission middleware
+      } else {
+        throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized');
+      }
     }
     
-    console.log('req.body before next:', req.body);
     req.user = decodeData;
     next();
   });

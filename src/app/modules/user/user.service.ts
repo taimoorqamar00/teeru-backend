@@ -98,10 +98,15 @@ const createUserToken = async (payload: TUserCreate) => {
 };
 
 const createStaff = async (payload: Partial<TUser>) => {
-  const { email, fullName, password, phone, gender } = payload as any;
+  const { email, fullName, password, phone, gender, permissions } = payload as any;
+  const role = (payload as any).role ?? 'staff';
 
   if (!email || !password) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Email and password are required');
+  }
+
+  if (!['admin', 'staff'].includes(role)) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Role must be admin or staff');
   }
 
   const userExist = await getUserByEmail(email);
@@ -115,7 +120,8 @@ const createStaff = async (payload: Partial<TUser>) => {
     password,
     phone,
     gender,
-    role: 'staff',
+    role,
+    ...(permissions !== undefined && { permissions }),
   };
 
   const user = await User.create(userData);
@@ -124,18 +130,37 @@ const createStaff = async (payload: Partial<TUser>) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'Staff creation failed');
   }
 
-  // Ensure role is set to 'staff' (in case schema default or middleware altered it)
-  const ensured = await User.findByIdAndUpdate(
-    user._id,
-    { role: 'staff' },
-    { new: true },
-  );
+  return user;
+};
 
-  if (!ensured) {
-    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to finalize staff role');
+const updateStaff = async (
+  id: string,
+  payload: { role?: string; permissions?: string[] },
+) => {
+  const user = await User.IsUserExistById(id);
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  return ensured;
+  if (user.role === 'user') {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Cannot update a regular user via this endpoint',
+    );
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (payload.role !== undefined) updateData.role = payload.role;
+  if (payload.permissions !== undefined) updateData.permissions = payload.permissions;
+
+  const updated = await User.findByIdAndUpdate(id, updateData, { new: true });
+
+  if (!updated) {
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Staff update failed');
+  }
+
+  return updated;
 };
 
 const otpVerifyAndCreateUser = async ({
@@ -358,6 +383,53 @@ const getAllStaffQuery = async (query: Record<string, unknown>) => {
   const meta = await staffQuery.countTotal();
 
   return { meta, result };
+};
+
+const getAllUsersWithPermissionsQuery = async (query: Record<string, unknown>) => {
+  const usersQuery = new QueryBuilder(
+    User.find({ 
+      role: { $in: ['admin', 'staff', 'user', 'seeker', 'plusone'] },
+      isDeleted: false 
+    }),
+    query
+  )
+    .search(['fullName', 'email'])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  // Ensure important fields are always returned
+  usersQuery.modelQuery = usersQuery.modelQuery.select('+role +permissions');
+
+  const result = await usersQuery.modelQuery;
+  const meta = await usersQuery.countTotal();
+
+  return { meta, result };
+};
+
+const updatePermissions = async (id: string, permissions: string[]) => {
+  const user = await User.IsUserExistById(id);
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (user.isDeleted) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Cannot update permissions for deleted user');
+  }
+
+  const updated = await User.findByIdAndUpdate(
+    id,
+    { permissions },
+    { new: true }
+  );
+
+  if (!updated) {
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Permission update failed');
+  }
+
+  return updated;
 };
 
 const getAllUserCount = async () => {
@@ -783,6 +855,8 @@ const unblockUser = async (id: string) => {
 export const userService = {
   createUserToken,
   createStaff,
+  updateStaff,
+  updatePermissions,
   otpVerifyAndCreateUser,
   completedUser,
   addUniqueCardToUser,
@@ -799,6 +873,7 @@ export const userService = {
   unblockUser,
   getAllUserQuery,
   getAllStaffQuery,
+  getAllUsersWithPermissionsQuery,
   getAllUserCount,
   getUsersOverview,
 };

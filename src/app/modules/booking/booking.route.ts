@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import auth from '../../middleware/auth';
+import checkPermission from '../../middleware/checkPermission';
 import validateRequest from '../../middleware/validateRequest';
 import { bookingController } from './booking.controller';
 import { bookingValidation } from './booking.validation';
@@ -14,21 +15,6 @@ router.post(
 );
 
 // Protected routes (auth required)
-router.post('/', (req, _res, next) => {
-  console.log('=== BOOKING ROUTE DEBUG ===');
-  console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('Headers:', req.headers);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Content-Length:', req.headers['content-length']);
-  console.log('Raw body before auth:', req.body);
-  console.log('Body type before auth:', typeof req.body);
-  console.log('=============================');
-  
-  // Continue to next middleware
-  next();
-});
-
 router.post(
   '/',
   auth('admin', 'user'),
@@ -39,6 +25,7 @@ router.post(
 router.get(
   '/',
   auth('admin'),
+  checkPermission('view_bookings'),
   bookingController.getAllBookings
 );
 
@@ -51,30 +38,35 @@ router.get(
 router.get(
   '/today',
   auth('admin'),
+  checkPermission('view_bookings'),
   bookingController.getTodayBookings
 );
 
 router.get(
   '/upcoming',
   auth('admin'),
+  checkPermission('view_bookings'),
   bookingController.getUpcomingBookings
 );
 
 router.get(
   '/statistics',
   auth('admin'),
+  checkPermission('view_bookings'),
   bookingController.getBookingStatistics
 );
 
 router.get(
   '/live-sessions',
   auth('admin'),
+  checkPermission('view_bookings', 'manage_checkins'),
   bookingController.getLiveSessions
 );
 
 router.get(
   '/date-range',
   auth('admin'),
+  checkPermission('view_bookings'),
   bookingController.getBookingsByDateRange
 );
 
@@ -87,12 +79,14 @@ router.get(
 router.patch(
   '/:id/start',
   auth('admin'),
+  checkPermission('manage_checkins'),
   bookingController.startSession
 );
 
 router.patch(
   '/:id/extend',
   auth('admin'),
+  checkPermission('manage_checkins'),
   validateRequest(bookingValidation.extendSessionValidationSchema),
   bookingController.extendSession
 );
@@ -100,6 +94,7 @@ router.patch(
 router.patch(
   '/:id/end',
   auth('admin'),
+  checkPermission('manage_checkins'),
   bookingController.endSession
 );
 
@@ -115,31 +110,5 @@ router.delete(
   auth('admin', 'user'),
   bookingController.deleteBooking
 );
-
-// Debug endpoint to troubleshoot request parsing
-router.post('/debug', (req, res) => {
-  console.log('=== BOOKING DEBUG ENDPOINT ===');
-  console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('Headers:', req.headers);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Body:', req.body);
-  console.log('Body type:', typeof req.body);
-  console.log('Body keys:', req.body ? Object.keys(req.body) : 'undefined');
-  console.log('===============================');
-  
-  res.json({
-    success: true,
-    message: 'Debug endpoint',
-    debug: {
-      method: req.method,
-      url: req.url,
-      contentType: req.headers['content-type'],
-      body: req.body,
-      bodyType: typeof req.body,
-      bodyKeys: req.body ? Object.keys(req.body) : null
-    }
-  });
-});
 
 export const bookingRoutes = router;

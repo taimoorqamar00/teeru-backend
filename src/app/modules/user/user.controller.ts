@@ -19,19 +19,33 @@ const createUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const createStaff = catchAsync(async (req: Request, res: Response) => {
-  console.log('create-staff called. headers:', {
-    authorization: req.headers.authorization || req.headers.token,
+  const newStaff = await userService.createStaff(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Staff member created successfully',
+    data: newStaff,
   });
-  console.log('create-staff body:', req.body);
+});
 
-  const staffPayload = req.body;
-  const newStaff = await userService.createStaff(staffPayload);
-
+const updateStaff = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.updateStaff(req.params.id, req.body);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Staff created successfully',
-    data: newStaff,
+    message: 'Staff updated successfully',
+    data: result,
+  });
+});
+
+const updatePermissions = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.updatePermissions(req.params.id, req.body.permissions);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Permissions updated successfully',
+    data: result,
   });
 });
 
@@ -117,6 +131,18 @@ const getAllStaff = catchAsync(async (req, res) => {
     meta: result.meta,
     data: result.result,
     message: 'Staff fetched successfully',
+  });
+});
+
+const getAllUsersWithPermissions = catchAsync(async (req, res) => {
+  const result = await userService.getAllUsersWithPermissionsQuery(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Users with permissions fetched successfully',
   });
 });
 
@@ -275,6 +301,8 @@ export const userController = {
   createUser,
   userCreateVarification,
   createStaff,
+  updateStaff,
+  updatePermissions,
   completedProfile,
   addCardToUser,
   getMyCards,
@@ -290,4 +318,5 @@ export const userController = {
   getAllUsers,
   getAllUsersOverview,
   getAllStaff,
+  getAllUsersWithPermissions,
 };

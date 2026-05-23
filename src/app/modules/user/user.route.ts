@@ -47,6 +47,8 @@ userRoutes
 
   .get('/all-users-overview', auth('admin'), userController.getAllUsersOverview)
 
+  .get('/all-users-with-permissions', auth('admin'), userController.getAllUsersWithPermissions)
+
   .get('/:id', auth('user', 'admin'), userController.getUserById)
 
   .patch(
@@ -62,11 +64,26 @@ userRoutes
 
   .patch('/changeRole/:id', auth('admin'), userController.changeRole)
 
+  .patch(
+    '/update-staff/:id',
+    auth('admin'),
+    validateRequest(userValidation.updateStaffValidationSchema),
+    userController.updateStaff,
+  )
+
+  .patch(
+    '/update-permissions/:id',
+    auth('admin'),
+    validateRequest(userValidation.updatePermissionsValidationSchema),
+    userController.updatePermissions,
+  )
+
   .patch('/block/:id', auth('admin'), userController.blockUser)
-  
+
   .patch('/unblock/:id', auth('admin'), userController.unblockUser)
 
   .delete('/delete-staff/:id', auth('admin'), userController.deleteStaff)
+
   .get('/all-staff', auth('admin'), userController.getAllStaff)
 
   .delete('/delete-my-account', auth('user'), userController.deleteMyAccount);

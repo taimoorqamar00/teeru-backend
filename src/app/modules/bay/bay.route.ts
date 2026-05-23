@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import auth from '../../middleware/auth';
+import checkPermission from '../../middleware/checkPermission';
 import validateRequest from '../../middleware/validateRequest';
 import { bayController } from './bay.controller';
 import { bayValidation } from './bay.validation';
@@ -27,6 +28,7 @@ router.get(
 router.post(
   '/',
   auth('admin'),
+  checkPermission('manage_bays'),
   validateRequest(bayValidation.createBayValidationSchema),
   bayController.createBay
 );
@@ -34,6 +36,7 @@ router.post(
 router.get(
   '/active',
   auth('admin'),
+  checkPermission('manage_bays'),
   bayController.getActiveBays
 );
 
@@ -41,12 +44,14 @@ router.get(
 router.get(
   '/statistics',
   auth('admin'),
+  checkPermission('manage_bays'),
   bayController.getBayStatistics
 );
 
 router.get(
   '/:id',
   auth('admin'),
+  checkPermission('manage_bays'),
   validateRequest(bayValidation.getBayByIdValidationSchema),
   bayController.getBayById
 );
@@ -54,6 +59,7 @@ router.get(
 router.patch(
   '/:id',
   auth('admin'),
+  checkPermission('manage_bays'),
   validateRequest(bayValidation.updateBayValidationSchema),
   bayController.updateBay
 );
@@ -61,6 +67,7 @@ router.patch(
 router.delete(
   '/:id',
   auth('admin'),
+  checkPermission('manage_bays'),
   validateRequest(bayValidation.getBayByIdValidationSchema),
   bayController.deleteBay
 );
