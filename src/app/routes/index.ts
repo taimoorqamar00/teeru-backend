@@ -16,6 +16,7 @@ import { bayRoutes } from "../modules/bay/bay.route";
 import { scheduleRoutes } from "../modules/schedule/schedule.route";
 import { membershipRoutes } from "../modules/membership/membership.route";
 import { pricingRuleRoutes } from "../modules/pricingRule/pricingRule.route";
+import { zoneTypeRoutes } from "../modules/zoneType/zoneType.route";
 
 const router = Router();
 
@@ -88,6 +89,10 @@ const moduleRoutes = [
 {
   path: "/pricing-rules",
   route: pricingRuleRoutes
+},
+{
+  path: "/zone-types",
+  route: zoneTypeRoutes
 }
 ];
 

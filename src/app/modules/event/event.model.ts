@@ -36,6 +36,7 @@ const EventSchema = new Schema<IEvent>(
       type: String,
       required: true,
     },
+    // Legacy hardcoded ticket prices (kept for backward compatibility)
     ticketPrices: {
       tribune: {
         price: { type: Number, default: 0 },
@@ -58,6 +59,15 @@ const EventSchema = new Schema<IEvent>(
         processingFee: { type: Number, default: 0 },
       }
     },
+    // New dynamic zone-based ticket prices
+    zoneTicketPrices: [
+      {
+        zoneType: { type: Schema.Types.ObjectId, ref: 'ZoneType', required: true },
+        price: { type: Number, default: 0 },
+        serviceFee: { type: Number, default: 0 },
+        processingFee: { type: Number, default: 0 },
+      }
+    ],
     isDeleted: {
       type: Boolean,
       default: false,
