@@ -8,6 +8,9 @@ const router = Router();
 
 router.get('/stats', auth('admin'), membershipController.getStats);
 
+// Public route for mobile — all active plans
+router.get('/plans/all', membershipController.getAllMembershipPlans);
+
 // Membership plans — specific paths before /:id
 router.get('/plans', auth('admin'), membershipController.getAllPlans);
 router.post(

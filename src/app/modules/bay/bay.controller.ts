@@ -197,6 +197,69 @@ const getLiveBays = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getBaysList = catchAsync(async (req: Request, res: Response) => {
+  const bays = await bayService.getBaysList();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Bays list retrieved successfully',
+    data: bays,
+  });
+});
+
+const getMyBays = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.userId;
+  const query = req.query;
+
+  const result = await bayService.getMyBays(userId, query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'My booked bays retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
+const getBayDetails = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { date } = req.query;
+
+  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Invalid bay ID format',
+      data: null,
+    });
+  }
+
+  const bayDetails = await bayService.getBayDetails(id, date as string | undefined);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Bay details retrieved successfully',
+    data: bayDetails,
+  });
+});
+
+const bookBay = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.userId;
+  const bookingData = req.body;
+
+  const result = await bayService.bookBay(userId, bookingData);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Bay booked successfully',
+    data: result,
+  });
+});
+
 export const bayController = {
   createBay,
   getAllBays,
@@ -207,4 +270,8 @@ export const bayController = {
   getBaySchedule,
   getActiveBays,
   getBayStatistics,
+  getBaysList,
+  getMyBays,
+  getBayDetails,
+  bookBay,
 };

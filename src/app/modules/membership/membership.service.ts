@@ -47,6 +47,33 @@ const getAllPlans = async () => {
   return MembershipPlan.find().sort({ price: 1 }).lean();
 };
 
+const getAllMembershipPlans = async () => {
+  const [membershipPlans, shortTermPlans] = await Promise.all([
+    MembershipPlan.find({ isActive: true }).sort({ price: 1 }).lean(),
+    ShortTermPlan.find({ isActive: true }).sort({ price: 1 }).lean(),
+  ]);
+
+  return {
+    membershipPlans: membershipPlans.map((plan) => ({
+      _id: plan._id,
+      name: plan.name,
+      price: plan.price,
+      period: plan.period,
+      hoursPerMonth: plan.hoursPerMonth,
+      features: plan.features,
+      type: 'membership',
+    })),
+    shortTermPlans: shortTermPlans.map((plan) => ({
+      _id: plan._id,
+      name: plan.name,
+      price: plan.price,
+      durationDays: plan.durationDays,
+      hoursIncluded: plan.hoursIncluded,
+      type: 'short-term',
+    })),
+  };
+};
+
 const createPlan = async (payload: {
   name: string;
   price: number;
@@ -264,6 +291,7 @@ export const decrementMemberHours = async (phone: string, duration: number): Pro
 export const membershipService = {
   getStats,
   getAllPlans,
+  getAllMembershipPlans,
   createPlan,
   updatePlan,
   togglePlan,

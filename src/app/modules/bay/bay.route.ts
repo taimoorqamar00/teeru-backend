@@ -9,6 +9,28 @@ const router = Router();
 
 // Public routes (no auth required for viewing)
 router.get(
+  '/list',
+  bayController.getBaysList
+);
+
+router.get(
+  '/my-bays',
+  auth('user', 'admin'),
+  bayController.getMyBays
+);
+
+router.get(
+  '/details/:id',
+  bayController.getBayDetails
+);
+
+router.post(
+  '/book',
+  auth('user', 'admin'),
+  bayController.bookBay
+);
+
+router.get(
   '/',
   bayController.getAllBays
 );
