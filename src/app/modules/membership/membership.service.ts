@@ -74,6 +74,142 @@ const getAllMembershipPlans = async () => {
   };
 };
 
+const getMemberships = async () => {
+  const [membershipPlans, shortTermPlans] = await Promise.all([
+    MembershipPlan.find({ isActive: true }).sort({ price: 1 }).lean(),
+    ShortTermPlan.find({ isActive: true }).sort({ price: 1 }).lean(),
+  ]);
+
+  const memberships = [
+    ...membershipPlans.map((plan) => ({
+      _id: plan._id,
+      name: plan.name,
+      price: plan.price,
+      period: plan.period,
+      hoursPerMonth: plan.hoursPerMonth,
+      features: plan.features,
+      type: 'membership' as const,
+    })),
+    ...shortTermPlans.map((plan) => ({
+      _id: plan._id,
+      name: plan.name,
+      price: plan.price,
+      period: `${plan.durationDays} days`,
+      hoursPerMonth: plan.hoursIncluded,
+      features: [] as string[],
+      type: 'short-term' as const,
+    })),
+  ];
+
+  return memberships;
+};
+
+const getMembershipDetails = async (id: string) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) throw new AppError(400, 'Invalid membership ID');
+
+  // Try membership plan first
+  const membershipPlan = await MembershipPlan.findById(id).lean();
+  if (membershipPlan) {
+    return {
+      _id: membershipPlan._id,
+      name: membershipPlan.name,
+      price: membershipPlan.price,
+      period: membershipPlan.period,
+      hoursPerMonth: membershipPlan.hoursPerMonth,
+      features: membershipPlan.features,
+      isActive: membershipPlan.isActive,
+      type: 'membership',
+    };
+  }
+
+  // Try short-term plan
+  const shortTermPlan = await ShortTermPlan.findById(id).lean();
+  if (shortTermPlan) {
+    return {
+      _id: shortTermPlan._id,
+      name: shortTermPlan.name,
+      price: shortTermPlan.price,
+      period: `${shortTermPlan.durationDays} days`,
+      durationDays: shortTermPlan.durationDays,
+      hoursIncluded: shortTermPlan.hoursIncluded,
+      isActive: shortTermPlan.isActive,
+      type: 'short-term',
+    };
+  }
+
+  throw new AppError(404, 'Membership not found');
+};
+
+const purchaseMembership = async (userId: string, payload: {
+  planId: string;
+  planType: 'membership' | 'short-term';
+  paymentMethod: 'wave' | 'orange-money';
+}) => {
+  const { planId, planType, paymentMethod } = payload;
+
+  // Get user info
+  const { User } = await import('../user/user.models');
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User not found');
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  let planName: string;
+  let price: number;
+  let expiryDate: Date;
+  let hoursLeft: number;
+
+  if (planType === 'membership') {
+    const plan = await MembershipPlan.findById(planId);
+    if (!plan) throw new AppError(404, 'Membership plan not found');
+    if (!plan.isActive) throw new AppError(400, 'This plan is currently inactive');
+
+    planName = plan.name;
+    price = plan.price;
+    hoursLeft = plan.hoursPerMonth;
+    expiryDate = new Date(today);
+    expiryDate.setUTCMonth(expiryDate.getUTCMonth() + 1);
+  } else {
+    const plan = await ShortTermPlan.findById(planId);
+    if (!plan) throw new AppError(404, 'Short-term plan not found');
+    if (!plan.isActive) throw new AppError(400, 'This plan is currently inactive');
+
+    planName = plan.name;
+    price = plan.price;
+    hoursLeft = plan.hoursIncluded;
+    expiryDate = new Date(today.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
+  }
+
+  const subscription = await MembershipSubscription.create({
+    customerInfo: {
+      name: user.fullName || user.email,
+      phone: user.phone || '',
+      customerId: user._id,
+    },
+    planId,
+    planName,
+    planType,
+    price,
+    startDate: today,
+    expiryDate,
+    hoursLeft,
+    hoursUsed: 0,
+    paymentMethod,
+  });
+
+  return {
+    _id: subscription._id,
+    planName: subscription.planName,
+    planType: subscription.planType,
+    price: subscription.price,
+    startDate: subscription.startDate,
+    expiryDate: subscription.expiryDate,
+    hoursLeft: subscription.hoursLeft,
+    paymentMethod: subscription.paymentMethod,
+  };
+};
+
 const createPlan = async (payload: {
   name: string;
   price: number;
@@ -292,6 +428,9 @@ export const membershipService = {
   getStats,
   getAllPlans,
   getAllMembershipPlans,
+  getMemberships,
+  getMembershipDetails,
+  purchaseMembership,
   createPlan,
   updatePlan,
   togglePlan,

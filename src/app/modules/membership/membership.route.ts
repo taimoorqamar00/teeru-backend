@@ -11,6 +11,20 @@ router.get('/stats', auth('admin'), membershipController.getStats);
 // Public route for mobile — all active plans
 router.get('/plans/all', membershipController.getAllMembershipPlans);
 
+// Public route — get all memberships (flat list)
+router.get('/get-memberships', membershipController.getMemberships);
+
+// Public route — get membership details by ID
+router.get('/get-membership-details/:id', membershipController.getMembershipDetails);
+
+// Mobile — purchase/subscribe to a membership (authenticated user)
+router.post(
+  '/purchase',
+  auth('user'),
+  validateRequest(membershipValidation.purchaseMembershipSchema),
+  membershipController.purchaseMembership,
+);
+
 // Membership plans — specific paths before /:id
 router.get('/plans', auth('admin'), membershipController.getAllPlans);
 router.post(

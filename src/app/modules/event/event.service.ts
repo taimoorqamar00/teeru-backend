@@ -105,9 +105,38 @@ const getUpcomingEvents = async () => {
     ]
   })
     .populate('category')
-    .sort({ date: 1, time: 1 }); // Soonest first
+    .populate('zoneTicketPrices.zoneType')
+    .sort({ date: 1, time: 1 }) // Soonest first
+    .lean();
 
-  return upcomingEvents;
+  // Transform zoneTicketPrices into a flat ticketPrices array with all values
+  const transformedEvents = upcomingEvents.map((event) => {
+    const ticketPrices: Array<{ name: string; price: number; serviceFee: number; processingFee: number }> = [];
+
+    if (event.zoneTicketPrices && event.zoneTicketPrices.length > 0) {
+      for (const zone of event.zoneTicketPrices) {
+        const zoneType = zone.zoneType as any;
+        if (zoneType && zoneType.name) {
+          ticketPrices.push({
+            id: zoneType._id,
+            name: zoneType.name,
+            price: zone.price,
+            serviceFee: zone.serviceFee,
+            processingFee: zone.processingFee,
+          });
+        }
+      }
+    }
+
+    // Remove the raw zoneTicketPrices array and legacy ticketPrices
+    const { zoneTicketPrices, ticketPrices: _legacyPrices, ...rest } = event;
+    return {
+      ...rest,
+      ticketPrices,
+    };
+  });
+
+  return transformedEvents;
 };
 
 

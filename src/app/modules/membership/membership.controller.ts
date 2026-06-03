@@ -19,6 +19,22 @@ const getAllMembershipPlans = catchAsync(async (_req: Request, res: Response) =>
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Membership plans retrieved successfully', data });
 });
 
+const getMemberships = catchAsync(async (_req: Request, res: Response) => {
+  const data = await membershipService.getMemberships();
+  sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Memberships retrieved successfully', data });
+});
+
+const getMembershipDetails = catchAsync(async (req: Request, res: Response) => {
+  const data = await membershipService.getMembershipDetails(req.params.id);
+  sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Membership details retrieved successfully', data });
+});
+
+const purchaseMembership = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user.userId;
+  const data = await membershipService.purchaseMembership(userId, req.body);
+  sendResponse(res, { statusCode: httpStatus.CREATED, success: true, message: 'Membership purchased successfully', data });
+});
+
 const createPlan = catchAsync(async (req: Request, res: Response) => {
   const data = await membershipService.createPlan(req.body);
   sendResponse(res, { statusCode: httpStatus.CREATED, success: true, message: 'Plan created successfully', data });
@@ -79,6 +95,9 @@ export const membershipController = {
   getStats,
   getAllPlans,
   getAllMembershipPlans,
+  getMemberships,
+  getMembershipDetails,
+  purchaseMembership,
   createPlan,
   updatePlan,
   togglePlan,

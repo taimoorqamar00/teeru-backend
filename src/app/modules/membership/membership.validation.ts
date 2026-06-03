@@ -68,6 +68,14 @@ const assignShortTermPlanSchema = z.object({
   }),
 });
 
+const purchaseMembershipSchema = z.object({
+  body: z.object({
+    planId: objectIdSchema,
+    planType: z.enum(['membership', 'short-term']),
+    paymentMethod: z.enum(['wave', 'orange-money']),
+  }),
+});
+
 export const membershipValidation = {
   createPlanSchema,
   updatePlanSchema,
@@ -75,4 +83,5 @@ export const membershipValidation = {
   updateShortTermPlanSchema,
   assignMembershipSchema,
   assignShortTermPlanSchema,
+  purchaseMembershipSchema,
 };
