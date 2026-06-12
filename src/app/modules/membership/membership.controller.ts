@@ -91,6 +91,17 @@ const renewSubscription = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Subscription renewed successfully', data });
 });
 
+const getMyMembership = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user.userId;
+  const data = await membershipService.getMyMembership(userId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: data ? 'My membership retrieved successfully' : 'No active membership found',
+    data,
+  });
+});
+
 export const membershipController = {
   getStats,
   getAllPlans,
@@ -108,4 +119,5 @@ export const membershipController = {
   assignMembership,
   assignShortTermPlan,
   renewSubscription,
+  getMyMembership,
 };

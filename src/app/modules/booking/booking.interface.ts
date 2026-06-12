@@ -24,6 +24,7 @@ export interface TBookingCreate {
   duration: TDuration;
   totalAmount: number;
   paymentMethod: TPaymentMethod;
+  transactionId?: string; // payment transaction ID from mobile (Wave/Orange Money)
   bookingDate?: Date; // derived from scheduleId if omitted
   startTime?: string; // derived from scheduleId if omitted
   status?: TBookingStatus;
@@ -46,6 +47,7 @@ export interface TBookingUpdate {
   duration?: TDuration;
   totalAmount?: number;
   paymentMethod?: TPaymentMethod;
+  transactionId?: string;
   bookingDate?: Date;
   startTime?: string;
   status?: TBookingStatus;

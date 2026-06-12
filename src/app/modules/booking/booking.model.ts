@@ -65,6 +65,10 @@ const bookingSchema = new Schema<TBooking>(
       enum: ['wave', 'orange-money'],
       required: true,
     },
+    transactionId: {
+      type: String,
+      trim: true,
+    },
     bookingDate: {
       type: Date,
       required: true,

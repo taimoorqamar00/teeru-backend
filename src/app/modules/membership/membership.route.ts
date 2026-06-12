@@ -25,6 +25,13 @@ router.post(
   membershipController.purchaseMembership,
 );
 
+// Mobile — get my membership (authenticated user)
+router.get(
+  '/my-membership',
+  auth('user', 'admin'),
+  membershipController.getMyMembership,
+);
+
 // Membership plans — specific paths before /:id
 router.get('/plans', auth('admin'), membershipController.getAllPlans);
 router.post(

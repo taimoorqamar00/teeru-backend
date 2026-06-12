@@ -405,6 +405,50 @@ const renewSubscription = async (id: string) => {
   return { ...sub, status: computeStatus(sub.expiryDate) };
 };
 
+// ─── My Membership (for authenticated user) ─────────────────────────────────
+
+const getMyMembership = async (userId: string) => {
+  const { User } = await import('../user/user.models');
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User not found');
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  // Find all subscriptions for this user (by customerId or phone)
+  const filter: any = {
+    $or: [] as any[],
+  };
+
+  filter.$or.push({ 'customerInfo.customerId': user._id });
+  if (user.phone) {
+    filter.$or.push({ 'customerInfo.phone': user.phone });
+  }
+
+  const subscriptions = await MembershipSubscription.find(filter)
+    .sort({ expiryDate: -1 })
+    .lean();
+
+  if (!subscriptions.length) {
+    return null;
+  }
+
+  return subscriptions.map((sub) => ({
+    _id: sub._id,
+    planName: sub.planName,
+    planType: sub.planType,
+    price: sub.price,
+    startDate: sub.startDate,
+    expiryDate: sub.expiryDate,
+    hoursLeft: sub.hoursLeft,
+    hoursUsed: sub.hoursUsed,
+    totalHours: sub.hoursLeft + sub.hoursUsed,
+    status: computeStatus(sub.expiryDate),
+    paymentMethod: sub.paymentMethod,
+    createdAt: sub.createdAt,
+  }));
+};
+
 // ─── Called from booking service ─────────────────────────────────────────────
 
 export const decrementMemberHours = async (phone: string, duration: number): Promise<void> => {
@@ -441,4 +485,5 @@ export const membershipService = {
   assignMembership,
   assignShortTermPlan,
   renewSubscription,
+  getMyMembership,
 };

@@ -475,6 +475,8 @@ const bookBay = async (userId: string, payload: {
   startTime: string;
   duration: number;
   paymentMethod: string;
+  transactionId?: string;
+  bookByMembership?: boolean;
   addOns?: string[];
   notes?: string;
 }): Promise<any> => {
@@ -511,6 +513,91 @@ const bookBay = async (userId: string, payload: {
     throw new AppError(httpStatus.CONFLICT, 'Bay is already booked for this time slot');
   }
 
+  // ─── Membership Booking Flow ─────────────────────────────────────────────────
+  if (payload.bookByMembership) {
+    const { MembershipSubscription } = await import('../membership/membership.model');
+    const { decrementMemberHours } = await import('../membership/membership.service');
+
+    // Find active membership for this user
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const subscription = await MembershipSubscription.findOne({
+      'customerInfo.customerId': user._id,
+      expiryDate: { $gte: today },
+      hoursLeft: { $gte: payload.duration },
+    }).lean();
+
+    if (!subscription) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'No active membership with sufficient hours found');
+    }
+
+    // Create the booking (no payment required, uses membership hours)
+    const bookingPayload = {
+      customerInfo: {
+        name: user.fullName || user.email,
+        phone: user.phone || '',
+        email: user.email,
+      },
+      customerType: 'member' as const,
+      bayNumber: bay.number,
+      scheduleId: payload.scheduleId,
+      duration: payload.duration,
+      totalAmount: 0, // Free for members
+      paymentMethod: payload.paymentMethod as 'wave' | 'orange-money',
+      transactionId: payload.transactionId,
+      bookingDate,
+      startTime: payload.startTime,
+      status: 'confirmed' as const, // Auto-confirm for members
+      addOns: payload.addOns || [],
+      notes: payload.notes,
+    };
+
+    const booking = await Booking.create(bookingPayload);
+
+    // Deduct membership hours
+    try {
+      await decrementMemberHours(user.phone || '', payload.duration);
+    } catch {
+      // Non-critical: booking succeeded, hours decrement failed
+    }
+
+    return {
+      bookingId: booking._id,
+      status: booking.status,
+      customerType: booking.customerType,
+      bayDetails: {
+        _id: bay._id,
+        name: bay.name,
+        number: bay.number,
+        hardware: bay.hardware,
+        projector: bay.projector,
+      },
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: calculateEndTime(payload.startTime, payload.duration),
+      duration: booking.duration,
+      totalAmount: booking.totalAmount,
+      paymentMethod: booking.paymentMethod,
+      transactionId: booking.transactionId,
+      addOns: booking.addOns,
+      customerInfo: booking.customerInfo,
+      notes: booking.notes,
+      membership: {
+        subscriptionId: subscription._id,
+        planName: subscription.planName,
+        hoursUsed: payload.duration,
+      },
+      createdAt: booking.createdAt,
+    };
+  }
+
+  // ─── Regular Payment Flow (Walk-in) ──────────────────────────────────────────
+  // transaction_id is required for regular payment bookings
+  if (!payload.transactionId) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Transaction ID is required for payment bookings');
+  }
+
   // Calculate total amount from pricing rules or schedule
   let totalAmount = 0;
 
@@ -525,9 +612,6 @@ const bookBay = async (userId: string, payload: {
     // Fallback: use pricing rules for the day
     const dayOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     const dayName = dayOfWeek[bookingDate.getDay()];
-
-    const [startH, startM] = payload.startTime.split(':').map(Number);
-    const startMin = startH * 60 + startM;
 
     const rule = await PricingRule.findOne({
       days: dayName,
@@ -556,6 +640,7 @@ const bookBay = async (userId: string, payload: {
     duration: payload.duration,
     totalAmount,
     paymentMethod: payload.paymentMethod as 'wave' | 'orange-money',
+    transactionId: payload.transactionId,
     bookingDate,
     startTime: payload.startTime,
     status: 'pending' as const,
@@ -569,6 +654,7 @@ const bookBay = async (userId: string, payload: {
   return {
     bookingId: booking._id,
     status: booking.status,
+    customerType: booking.customerType,
     bayDetails: {
       _id: bay._id,
       name: bay.name,
@@ -582,6 +668,7 @@ const bookBay = async (userId: string, payload: {
     duration: booking.duration,
     totalAmount: booking.totalAmount,
     paymentMethod: booking.paymentMethod,
+    transactionId: booking.transactionId,
     addOns: booking.addOns,
     customerInfo: booking.customerInfo,
     notes: booking.notes,
