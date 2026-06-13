@@ -144,8 +144,9 @@ const purchaseMembership = async (userId: string, payload: {
   planId: string;
   planType: 'membership' | 'short-term';
   paymentMethod: 'wave' | 'orange-money' | 'paydunya';
+  transactionId: string;
 }) => {
-  const { planId, planType, paymentMethod } = payload;
+  const { planId, planType, paymentMethod, transactionId } = payload;
 
   // Get user info
   const { User } = await import('../user/user.models');
@@ -196,6 +197,7 @@ const purchaseMembership = async (userId: string, payload: {
     hoursLeft,
     hoursUsed: 0,
     paymentMethod,
+    transactionId,
   });
 
   return {
@@ -207,6 +209,7 @@ const purchaseMembership = async (userId: string, payload: {
     expiryDate: subscription.expiryDate,
     hoursLeft: subscription.hoursLeft,
     paymentMethod: subscription.paymentMethod,
+    transactionId: subscription.transactionId,
   };
 };
 

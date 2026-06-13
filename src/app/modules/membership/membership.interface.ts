@@ -45,6 +45,7 @@ export interface TMembershipSubscription {
   hoursLeft: number;
   hoursUsed: number;
   paymentMethod: 'wave' | 'orange-money' | 'paydunya';
+  transactionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -73,6 +73,7 @@ const purchaseMembershipSchema = z.object({
     planId: objectIdSchema,
     planType: z.enum(['membership', 'short-term']),
     paymentMethod: z.enum(['wave', 'orange-money', 'paydunya']),
+    transactionId: z.string().min(1, 'Transaction ID is required'),
   }),
 });
 

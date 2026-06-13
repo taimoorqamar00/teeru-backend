@@ -45,6 +45,7 @@ const membershipSubscriptionSchema = new Schema<TMembershipSubscription>(
     hoursLeft: { type: Number, required: true, min: 0 },
     hoursUsed: { type: Number, default: 0 },
     paymentMethod: { type: String, enum: ['wave', 'orange-money', 'paydunya'], required: true },
+    transactionId: { type: String, trim: true },
   },
   { timestamps: true },
 );
