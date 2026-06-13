@@ -544,7 +544,7 @@ const bookBay = async (userId: string, payload: {
       scheduleId: payload.scheduleId,
       duration: payload.duration,
       totalAmount: 0, // Free for members
-      paymentMethod: payload.paymentMethod as 'wave' | 'orange-money',
+      paymentMethod: payload.paymentMethod as 'wave' | 'orange-money' | 'paydunya',
       transactionId: payload.transactionId,
       bookingDate,
       startTime: payload.startTime,
@@ -639,7 +639,7 @@ const bookBay = async (userId: string, payload: {
     scheduleId: payload.scheduleId,
     duration: payload.duration,
     totalAmount,
-    paymentMethod: payload.paymentMethod as 'wave' | 'orange-money',
+    paymentMethod: payload.paymentMethod as 'wave' | 'orange-money' | 'paydunya',
     transactionId: payload.transactionId,
     bookingDate,
     startTime: payload.startTime,

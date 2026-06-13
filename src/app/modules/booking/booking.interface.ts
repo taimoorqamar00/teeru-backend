@@ -2,7 +2,7 @@ import { Model } from 'mongoose';
 
 export type TCustomerType = 'member' | 'walk-in' | 'pass';
 
-export type TPaymentMethod = 'wave' | 'orange-money';
+export type TPaymentMethod = 'wave' | 'orange-money' | 'paydunya';
 
 export type TBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 

@@ -38,8 +38,8 @@ const createBookingValidationSchema = z.object({
       .number()
       .min(0, { message: 'Total amount must be positive' }),
     paymentMethod: z
-      .enum(['wave', 'orange-money'], {
-        errorMap: () => ({ message: 'Payment method must be wave or orange-money' }),
+      .enum(['wave', 'orange-money', 'paydunya'], {
+        errorMap: () => ({ message: 'Payment method must be wave, orange-money, or paydunya' }),
       }),
     bookingDate: z
       .string()
@@ -91,7 +91,7 @@ const updateBookingValidationSchema = z.object({
       .min(0)
       .optional(),
     paymentMethod: z
-      .enum(['wave', 'orange-money'])
+      .enum(['wave', 'orange-money', 'paydunya'])
       .optional(),
     bookingDate: z
       .string()

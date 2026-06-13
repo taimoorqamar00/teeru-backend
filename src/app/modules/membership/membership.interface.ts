@@ -44,7 +44,7 @@ export interface TMembershipSubscription {
   expiryDate: Date;
   hoursLeft: number;
   hoursUsed: number;
-  paymentMethod: 'wave' | 'orange-money';
+  paymentMethod: 'wave' | 'orange-money' | 'paydunya';
   createdAt: Date;
   updatedAt: Date;
 }

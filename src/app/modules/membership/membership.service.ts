@@ -143,7 +143,7 @@ const getMembershipDetails = async (id: string) => {
 const purchaseMembership = async (userId: string, payload: {
   planId: string;
   planType: 'membership' | 'short-term';
-  paymentMethod: 'wave' | 'orange-money';
+  paymentMethod: 'wave' | 'orange-money' | 'paydunya';
 }) => {
   const { planId, planType, paymentMethod } = payload;
 
@@ -319,7 +319,7 @@ const assignMembership = async (payload: {
   planId: string;
   startDate: string;
   expiryDate: string;
-  paymentMethod: 'wave' | 'orange-money';
+  paymentMethod: 'wave' | 'orange-money' | 'paydunya';
 }) => {
   const plan = await MembershipPlan.findById(payload.planId);
   if (!plan) throw new AppError(404, 'Membership plan not found');
@@ -345,7 +345,7 @@ const assignShortTermPlan = async (payload: {
   customerInfo: { name: string; phone: string; customerId?: string };
   planId: string;
   startDate: string;
-  paymentMethod: 'wave' | 'orange-money';
+  paymentMethod: 'wave' | 'orange-money' | 'paydunya';
 }) => {
   const plan = await ShortTermPlan.findById(payload.planId);
   if (!plan) throw new AppError(404, 'Short-term plan not found');

@@ -32,9 +32,10 @@ const getAllBookings = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyBookings = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.userId;
   const query = req.query;
   
-  const result = await bookingService.getAllBookings(query);
+  const result = await bookingService.getMyBookings(userId, query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

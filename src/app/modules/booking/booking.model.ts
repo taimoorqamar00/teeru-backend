@@ -62,7 +62,7 @@ const bookingSchema = new Schema<TBooking>(
     },
     paymentMethod: {
       type: String,
-      enum: ['wave', 'orange-money'],
+      enum: ['wave', 'orange-money', 'paydunya'],
       required: true,
     },
     transactionId: {

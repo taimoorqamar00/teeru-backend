@@ -55,7 +55,7 @@ const assignMembershipSchema = z.object({
     planId: objectIdSchema,
     startDate: dateSchema,
     expiryDate: dateSchema,
-    paymentMethod: z.enum(['wave', 'orange-money']),
+    paymentMethod: z.enum(['wave', 'orange-money', 'paydunya']),
   }),
 });
 
@@ -64,7 +64,7 @@ const assignShortTermPlanSchema = z.object({
     customerInfo: customerInfoSchema,
     planId: objectIdSchema,
     startDate: dateSchema,
-    paymentMethod: z.enum(['wave', 'orange-money']),
+    paymentMethod: z.enum(['wave', 'orange-money', 'paydunya']),
   }),
 });
 
@@ -72,7 +72,7 @@ const purchaseMembershipSchema = z.object({
   body: z.object({
     planId: objectIdSchema,
     planType: z.enum(['membership', 'short-term']),
-    paymentMethod: z.enum(['wave', 'orange-money']),
+    paymentMethod: z.enum(['wave', 'orange-money', 'paydunya']),
   }),
 });
 

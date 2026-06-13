@@ -44,7 +44,7 @@ const membershipSubscriptionSchema = new Schema<TMembershipSubscription>(
     expiryDate: { type: Date, required: true },
     hoursLeft: { type: Number, required: true, min: 0 },
     hoursUsed: { type: Number, default: 0 },
-    paymentMethod: { type: String, enum: ['wave', 'orange-money'], required: true },
+    paymentMethod: { type: String, enum: ['wave', 'orange-money', 'paydunya'], required: true },
   },
   { timestamps: true },
 );

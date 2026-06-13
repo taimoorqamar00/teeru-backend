@@ -516,9 +516,60 @@ const getLiveSessions = async () => {
   return { bays, summary, generatedAt: now.toISOString() };
 };
 
+const getMyBookings = async (userId: string, query: TBookingListQuery): Promise<IPaginationResult<TBooking>> => {
+  const { User } = await import('../user/user.models');
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User not found');
+
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = 'bookingDate',
+    sortOrder = 'desc',
+    status,
+  } = query;
+
+  // Match bookings by user's phone or email
+  const matchConditions: any[] = [];
+  if (user.phone) matchConditions.push({ 'customerInfo.phone': user.phone });
+  if (user.email) matchConditions.push({ 'customerInfo.email': user.email });
+
+  if (matchConditions.length === 0) {
+    return { data: [], meta: { page, limit, total: 0, totalPage: 0 } };
+  }
+
+  const filter: any = {
+    $or: matchConditions,
+    isDeleted: false,
+  };
+
+  if (status) filter.status = status;
+
+  const sort: any = {};
+  sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+  const skip = (page - 1) * limit;
+
+  const [bookings, total] = await Promise.all([
+    Booking.find(filter)
+      .populate('scheduleId', 'timeSlot duration pricing addOns date')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean({ virtuals: true }),
+    Booking.countDocuments(filter),
+  ]);
+
+  return {
+    data: bookings,
+    meta: { page, limit, total, totalPage: Math.ceil(total / limit) },
+  };
+};
+
 export const bookingService = {
   createBooking,
   getAllBookings,
+  getMyBookings,
   getBookingById,
   updateBooking,
   deleteBooking,
