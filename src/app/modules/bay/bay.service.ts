@@ -544,8 +544,7 @@ const bookBay = async (userId: string, payload: {
       scheduleId: payload.scheduleId,
       duration: payload.duration,
       totalAmount: 0, // Free for members
-      paymentMethod: payload.paymentMethod as 'wave' | 'orange-money' | 'paydunya',
-      transactionId: payload.transactionId,
+      paymentMethod: 'membership' as const,
       bookingDate,
       startTime: payload.startTime,
       status: 'confirmed' as const, // Auto-confirm for members
@@ -593,6 +592,9 @@ const bookBay = async (userId: string, payload: {
   }
 
   // ─── Regular Payment Flow (Walk-in) ──────────────────────────────────────────
+  // For non-membership bookings, paymentMethod defaults to 'paydunya'
+  const resolvedPaymentMethod = payload.paymentMethod || 'paydunya';
+
   // transaction_id is required for regular payment bookings
   if (!payload.transactionId) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Transaction ID is required for payment bookings');
@@ -639,7 +641,7 @@ const bookBay = async (userId: string, payload: {
     scheduleId: payload.scheduleId,
     duration: payload.duration,
     totalAmount,
-    paymentMethod: payload.paymentMethod as 'wave' | 'orange-money' | 'paydunya',
+    paymentMethod: resolvedPaymentMethod as 'wave' | 'orange-money' | 'paydunya',
     transactionId: payload.transactionId,
     bookingDate,
     startTime: payload.startTime,
