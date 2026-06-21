@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express, { Application, Request, Response } from 'express';
+import express, { Application, NextFunction, Request, Response } from 'express';
 import globalErrorHandler from './app/middleware/globalErrorhandler';
 // import notFound from './app/middleware/notfound';
 import router from './app/routes';
@@ -43,9 +43,13 @@ app.use(
 // application routes
 app.use('/api/v1', router);
 
-app.get('/', async (req: Request, res: Response) => {
-  const htmlContent = await serverHomePage(); // Wait for HTML generation
-  res.send(htmlContent); // Send the generated HTML
+app.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const htmlContent = await serverHomePage();
+    res.send(htmlContent);
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use(globalErrorHandler);

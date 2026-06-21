@@ -4,6 +4,7 @@ import httpStatus from 'http-status';
 import { IEvent } from './event.interface';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Ticket } from '../ticket/ticket.model';
+import { Types } from 'mongoose';
 
 const createEvent = async (data: IEvent) => {
   const newEvent = new Event(data);
@@ -111,7 +112,7 @@ const getUpcomingEvents = async () => {
 
   // Transform zoneTicketPrices into a flat ticketPrices array with all values
   const transformedEvents = upcomingEvents.map((event) => {
-    const ticketPrices: Array<{ name: string; price: number; serviceFee: number; processingFee: number }> = [];
+    const ticketPrices: Array<{ id: unknown; name: string; price: number; serviceFee: number; processingFee: number }> = [];
 
     if (event.zoneTicketPrices && event.zoneTicketPrices.length > 0) {
       for (const zone of event.zoneTicketPrices) {
@@ -154,7 +155,7 @@ const getUpcomingEventOfSpecificUser = async (userId: string) => {
   // Filter out tickets with no populated event (i.e., past events were excluded)
   const upcomingEvents = tickets
     .filter(ticket => ticket.eventId)
-    .map(ticket => ticket.eventId);
+    .map(ticket => ticket.eventId as unknown as IEvent & { _id: Types.ObjectId });
 
   // Sort by date and time (earliest to latest)
   const sortedUpcomingEvents = upcomingEvents.sort((a, b) => {
