@@ -1,6 +1,7 @@
 import { Booking } from './booking.model';
 import { TBooking, TBookingCreate, TBookingUpdate, TBookingListQuery, TBayNumber, IPaginationResult } from './booking.interface';
 import { Schedule } from '../schedule/schedule.model';
+import Addon from '../addon/addon.model';
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
 import { decrementMemberHours } from '../membership/membership.service';
@@ -13,11 +14,6 @@ const BAY_RATES = {
   2: 25000,
   3: 25000,
   4: 25000,
-};
-
-const ADD_ON_PRICES: Record<string, number> = {
-  'Golf Club Rental': 10000,
-  'Coaching Session': 20000,
 };
 
 const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
@@ -330,9 +326,12 @@ const extendSession = async (
   }
 
   const bayRate = BAY_RATES[booking.bayNumber as keyof typeof BAY_RATES] ?? 25000;
+  const matchedAddons = addOns.length > 0
+    ? await Addon.find({ name: { $in: addOns }, isDeleted: false, status: 'active' })
+    : [];
   const extraCost =
     bayRate * extraDuration +
-    addOns.reduce((sum, name) => sum + (ADD_ON_PRICES[name] ?? 0), 0);
+    matchedAddons.reduce((sum, addon) => sum + addon.price, 0);
 
   booking.totalAmount += extraCost;
   if (addOns.length > 0) {

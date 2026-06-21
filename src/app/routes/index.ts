@@ -17,6 +17,7 @@ import { scheduleRoutes } from "../modules/schedule/schedule.route";
 import { membershipRoutes } from "../modules/membership/membership.route";
 import { pricingRuleRoutes } from "../modules/pricingRule/pricingRule.route";
 import { zoneTypeRoutes } from "../modules/zoneType/zoneType.route";
+import { addonRoutes } from "../modules/addon/addon.route";
 
 const router = Router();
 
@@ -93,6 +94,10 @@ const moduleRoutes = [
 {
   path: "/zone-types",
   route: zoneTypeRoutes
+},
+{
+  path: "/addons",
+  route: addonRoutes
 }
 ];
 

@@ -206,7 +206,7 @@ const extendSessionValidationSchema = z.object({
         .optional()
         .default(0),
       addOns: z
-        .array(z.enum(['Golf Club Rental', 'Coaching Session']))
+        .array(z.string().min(1))
         .optional()
         .default([]),
     })
