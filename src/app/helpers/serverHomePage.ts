@@ -34,55 +34,59 @@ function readLogFile(): {
   const errorLogs: ErrorLogEntry[] = [];
   const responseTimeLogs: ResponseLogEntry[] = [];
 
-  try {
-    const responseLogData = fs.readFileSync(responseLogFilePath, 'utf8');
-    responseLogData.split('\n').forEach((entry) => {
-      if (!entry.trim()) return;
-      try {
-        const log = JSON.parse(entry);
-        if (log.responseTime) {
-          const responseTime = parseFloat(log.responseTime);
-          const label =
-            responseTime > 2000 ? 'High' : responseTime > 1000 ? 'Medium' : 'Low';
+  if (fs.existsSync(responseLogFilePath)) {
+    try {
+      const responseLogData = fs.readFileSync(responseLogFilePath, 'utf8');
+      responseLogData.split('\n').forEach((entry) => {
+        if (!entry.trim()) return;
+        try {
+          const log = JSON.parse(entry);
+          if (log.responseTime) {
+            const responseTime = parseFloat(log.responseTime);
+            const label =
+              responseTime > 2000 ? 'High' : responseTime > 1000 ? 'Medium' : 'Low';
 
-          responseTimeLogs.push({
-            timestamp: new Date(log.timestamp).toLocaleString(),
-            route: log.url || 'N/A',
-            method: log.method || 'N/A',
-            responseTime,
-            label,
-          });
+            responseTimeLogs.push({
+              timestamp: new Date(log.timestamp).toLocaleString(),
+              route: log.url || 'N/A',
+              method: log.method || 'N/A',
+              responseTime,
+              label,
+            });
+          }
+        } catch (err) {
+          console.error('Error parsing response time log entry:', err);
         }
-      } catch (err) {
-        console.error('Error parsing response time log entry:', err);
-      }
-    });
-  } catch (err) {
-    console.error('Error reading response time log file:', err);
+      });
+    } catch (err) {
+      console.error('Error reading response time log file:', err);
+    }
   }
 
-  try {
-    const errorLogData = fs.readFileSync(errorLogFilePath, 'utf8');
-    errorLogData.split('\n').forEach((entry) => {
-      if (!entry.trim()) return;
-      try {
-        const log = JSON.parse(entry);
-        if (log.level === 'error' && !(log.url && log.url.includes('/favicon.ico'))) {
-          errorLogs.push({
-            timestamp: new Date(log.timestamp).toLocaleString(),
-            method: log.method || 'N/A',
-            statusCode: log.status || 'N/A',
-            message: log.message,
-            errorPath: log.url || 'N/A',
-            stack: log.stack || 'No stack trace available',
-          });
+  if (fs.existsSync(errorLogFilePath)) {
+    try {
+      const errorLogData = fs.readFileSync(errorLogFilePath, 'utf8');
+      errorLogData.split('\n').forEach((entry) => {
+        if (!entry.trim()) return;
+        try {
+          const log = JSON.parse(entry);
+          if (log.level === 'error' && !(log.url && log.url.includes('/favicon.ico'))) {
+            errorLogs.push({
+              timestamp: new Date(log.timestamp).toLocaleString(),
+              method: log.method || 'N/A',
+              statusCode: log.status || 'N/A',
+              message: log.message,
+              errorPath: log.url || 'N/A',
+              stack: log.stack || 'No stack trace available',
+            });
+          }
+        } catch (err) {
+          console.error('Error parsing error log entry:', err);
         }
-      } catch (err) {
-        console.error('Error parsing error log entry:', err);
-      }
-    });
-  } catch (err) {
-    console.error('Error reading error log file:', err);
+      });
+    } catch (err) {
+      console.error('Error reading error log file:', err);
+    }
   }
 
   return {

@@ -53,7 +53,7 @@ const baySchema = new Schema<TBay>(
 );
 
 // Indexes for better query performance
-baySchema.index({ number: 1 });
+// Note: {number: 1} index is already created by unique:true on the field definition
 baySchema.index({ isActive: 1 });
 baySchema.index({ isDeleted: 1 });
 baySchema.index({ name: 'text', hardware: 'text', projector: 'text' });
