@@ -1,9 +1,12 @@
 import { Types } from 'mongoose';
 
+export type ZoneTypeStatus = 'active' | 'inactive';
+
 export interface IZoneType {
   name: string;
   slug: string;
   description?: string;
+  status: ZoneTypeStatus;
   isDefault: boolean;
   isDeleted: boolean;
 }

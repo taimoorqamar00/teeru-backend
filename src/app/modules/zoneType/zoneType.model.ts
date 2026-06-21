@@ -16,6 +16,11 @@ const ZoneTypeSchema = new Schema<IZoneType>(
       type: String,
       default: '',
     },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active',
+    },
     isDefault: {
       type: Boolean,
       default: false,
