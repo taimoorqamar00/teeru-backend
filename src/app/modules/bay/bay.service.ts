@@ -3,6 +3,7 @@ import { Booking } from '../booking/booking.model';
 import { Schedule } from '../schedule/schedule.model';
 import { PricingRule } from '../pricingRule/pricingRule.model';
 import { User } from '../user/user.models';
+import { addonService } from '../addon/addon.service';
 import { TBay, TBayCreate, TBayUpdate, TBayListQuery, TBaySchedule, IPaginationResult } from './bay.interface';
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
@@ -395,8 +396,16 @@ const getBayDetails = async (bayId: string, date?: string): Promise<any> => {
     .sort({ startTime: 1 })
     .lean();
 
-  // Collect all unique add-ons from schedules
-  const allAddOns = [...new Set(schedules.flatMap((s) => s.addOns || []))];
+  // Collect all unique add-on refs from schedules and resolve them to full Addon
+  // documents (Schedule/Booking store add-ons as a mix of Addon _id and name)
+  const allAddOnRefs = [...new Set(schedules.flatMap((s) => s.addOns || []))];
+  const addonDocs = await addonService.getAddonsByRefs(allAddOnRefs);
+  const addonByRef = new Map(
+    addonDocs.flatMap((addon) => [[addon._id.toString(), addon], [addon.name, addon]] as const)
+  );
+  const resolveAddOns = (refs: string[]) =>
+    refs.map((ref) => addonByRef.get(ref) || { _id: ref });
+  const allAddOns = resolveAddOns(allAddOnRefs);
 
   // Build slots with availability status
   const slots = schedules.map((schedule) => {
@@ -432,7 +441,7 @@ const getBayDetails = async (bayId: string, date?: string): Promise<any> => {
       endTime: slotEnd,
       duration: schedule.duration,
       pricing: schedule.pricing,
-      addOns: schedule.addOns || [],
+      addOns: resolveAddOns(schedule.addOns || []),
       isAvailable: !isBooked,
       booking: matchingBooking
         ? {

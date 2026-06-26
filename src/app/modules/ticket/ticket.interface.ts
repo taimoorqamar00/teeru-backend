@@ -6,19 +6,25 @@ export type TTicketInfo = {
 };
 
 export type TTicket = {
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId;
   eventId: Types.ObjectId;
   paymentId: Types.ObjectId;
   tickets: TTicketInfo[];
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
 };
 
 
 export type BuyTicketInput = {
   fullName: string;
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
   eventId: mongoose.Types.ObjectId;
   amount: number;
   transactionId: string;
   paymentMethod: 'Wave' | 'OrangeMoney' | 'Apple' | 'Google' | 'Card' | 'Bank' | 'stripe';
   tickets: TTicketInfo[];
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
 };

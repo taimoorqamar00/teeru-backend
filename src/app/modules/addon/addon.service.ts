@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Addon from './addon.model';
 import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
@@ -31,6 +32,20 @@ const getAddonById = async (id: string) => {
   return addon;
 };
 
+// Resolves add-on references stored on Booking/Schedule (a mix of Addon _id
+// strings and, historically, plain names) to their full Addon documents.
+const getAddonsByRefs = async (refs: string[]) => {
+  if (!refs.length) return [];
+
+  const ids = refs.filter((ref) => mongoose.Types.ObjectId.isValid(ref));
+  const names = refs.filter((ref) => !mongoose.Types.ObjectId.isValid(ref));
+
+  return await Addon.find({
+    isDeleted: false,
+    $or: [{ _id: { $in: ids } }, { name: { $in: names } }],
+  }).lean();
+};
+
 const updateAddon = async (id: string, data: Partial<IAddon>) => {
   const updatedAddon = await Addon.findOneAndUpdate(
     { _id: id, isDeleted: false },
@@ -57,6 +72,7 @@ export const addonService = {
   createAddon,
   getAllAddons,
   getAddonById,
+  getAddonsByRefs,
   updateAddon,
   deleteAddon,
 };

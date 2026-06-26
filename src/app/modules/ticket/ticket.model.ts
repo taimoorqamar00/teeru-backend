@@ -13,7 +13,7 @@ const ticketInfoSchema = new Schema<TTicketInfo>(
 
 const ticketSchema = new Schema<TTicket>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', required: true },
     tickets: {
@@ -21,6 +21,9 @@ const ticketSchema = new Schema<TTicket>(
       required: true,
       validate: [(v: TTicketInfo[]) => v.length > 0, 'At least one ticket must be provided'],
     },
+    guestName: { type: String },
+    guestEmail: { type: String },
+    guestPhone: { type: String },
   },
   {
     timestamps: true,

@@ -31,6 +31,9 @@ const buyTicket = async (data: BuyTicketInput) => {
       eventId: data.eventId,
       paymentId: newPayment[0]._id,
       tickets: data.tickets,
+      guestName: data.guestName,
+      guestEmail: data.guestEmail,
+      guestPhone: data.guestPhone,
     };
 
     const newTicket = await Ticket.create([ticketData], { session });
@@ -44,10 +47,10 @@ const buyTicket = async (data: BuyTicketInput) => {
 
     const adminId = getAdminId()
 
-   emitNotification( {userId: data.userId, 
-      receiverId: adminId, 
+   emitNotification( {userId: data.userId,
+      receiverId: adminId,
       message: `${data.fullName} bought a ticket`,
-      type: 'buyTicket',})
+      type: 'buyTicket',}).catch((error) => console.error('Failed to emit buyTicket notification:', error))
 
     return newTicket[0];
   } catch (error) {

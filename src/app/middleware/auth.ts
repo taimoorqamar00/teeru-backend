@@ -44,4 +44,34 @@ const auth = (...userRoles: string[]) => {
     next();
   });
 };
+
+// Decodes the token and attaches req.user when it's present and valid, but
+// lets the request through as a guest (no req.user) when the token is
+// missing, malformed, expired, or for a user that no longer exists.
+export const optionalAuth = () => {
+  return catchAsync(async (req, res, next) => {
+    const token: any = req.headers?.authorization || req?.headers?.token;
+
+    if (!token) {
+      return next();
+    }
+
+    try {
+      const decodeData = verifyToken({
+        token,
+        access_secret: config.jwt_access_secret as string,
+      });
+
+      const isUserExist = await User.IsUserExistById(decodeData.userId);
+      if (isUserExist) {
+        req.user = decodeData;
+      }
+    } catch {
+      // Invalid/expired token on a guest-eligible route: proceed as guest.
+    }
+
+    next();
+  });
+};
+
 export default auth;
