@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 
-export type TCustomerType = 'member' | 'walk-in' | 'pass';
+export type TCustomerType = 'member' | 'walk-in' | 'pass' | 'mobile';
 
 export type TPaymentMethod = 'wave' | 'orange-money' | 'paydunya' | 'membership';
 

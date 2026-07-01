@@ -21,7 +21,7 @@ const buyTicket = catchAsync(async (req: Request, res: Response) => {
       }
 
       console.log(req.body)
-    const newTicket = await ticketServices.buyTicket(req.body);
+      const newTicket = await ticketServices.buyTicket(req.body);
   
     sendResponse(res, {
       statusCode: httpStatus.CREATED,
@@ -32,9 +32,13 @@ const buyTicket = catchAsync(async (req: Request, res: Response) => {
   });
 
 const getUserTickets = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user.userId;
+  const deviceId = req.query.deviceId as string | undefined;
 
-  const tickets = await ticketServices.getUserTickets(userId);
+  if (!deviceId) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'deviceId query parameter is required');
+  }
+
+  const tickets = await ticketServices.getUserTickets({ deviceId });
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

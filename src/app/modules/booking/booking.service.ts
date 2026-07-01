@@ -34,6 +34,10 @@ const createBooking = async (payload: TBookingCreate): Promise<TBooking> => {
     payload.totalAmount = rate * payload.duration;
   }
 
+  if (['paydunya', 'membership'].includes(payload.paymentMethod)) {
+    payload.status = 'confirmed';
+  }
+
   const booking = await Booking.create(payload);
 
   if (booking.status === 'confirmed' && ['member', 'pass'].includes(booking.customerType)) {

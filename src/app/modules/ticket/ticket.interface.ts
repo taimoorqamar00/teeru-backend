@@ -7,6 +7,7 @@ export type TTicketInfo = {
 
 export type TTicket = {
   userId?: Types.ObjectId;
+  deviceId?: string;
   eventId: Types.ObjectId;
   paymentId: Types.ObjectId;
   tickets: TTicketInfo[];
@@ -19,6 +20,7 @@ export type TTicket = {
 export type BuyTicketInput = {
   fullName: string;
   userId?: mongoose.Types.ObjectId;
+  deviceId?: string;
   eventId: mongoose.Types.ObjectId;
   amount: number;
   transactionId: string;

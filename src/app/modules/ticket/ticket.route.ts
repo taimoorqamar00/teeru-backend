@@ -13,7 +13,6 @@ ticketRoutes
 
 .get(
     "/myTickets",
-    auth("user", 'admin'),
     ticketController.getUserTickets
 )
 

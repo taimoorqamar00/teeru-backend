@@ -22,8 +22,8 @@ const createBookingValidationSchema = z.object({
   body: z.object({
     customerInfo: customerInfoSchema,
     customerType: z
-      .enum(['member', 'walk-in', 'pass'], {
-        errorMap: () => ({ message: 'Customer type must be member, walk-in, or pass' }),
+      .enum(['member', 'walk-in', 'pass', 'mobile'], {
+        errorMap: () => ({ message: 'Customer type must be member, walk-in, pass, or mobile' }),
       }),
     bayNumber: z
       .number()
@@ -38,8 +38,8 @@ const createBookingValidationSchema = z.object({
       .number()
       .min(0, { message: 'Total amount must be positive' }),
     paymentMethod: z
-      .enum(['wave', 'orange-money', 'paydunya'], {
-        errorMap: () => ({ message: 'Payment method must be wave, orange-money, or paydunya' }),
+      .enum(['wave', 'orange-money', 'paydunya', 'membership'], {
+        errorMap: () => ({ message: 'Payment method must be wave, orange-money, paydunya, or membership' }),
       }),
     bookingDate: z
       .string()
@@ -73,7 +73,7 @@ const updateBookingValidationSchema = z.object({
   body: z.object({
     customerInfo: customerInfoSchema.optional(),
     customerType: z
-      .enum(['member', 'walk-in', 'pass'])
+      .enum(['member', 'walk-in', 'pass', 'mobile'])
       .optional(),
     bayNumber: z
       .number()
@@ -91,7 +91,7 @@ const updateBookingValidationSchema = z.object({
       .min(0)
       .optional(),
     paymentMethod: z
-      .enum(['wave', 'orange-money', 'paydunya'])
+      .enum(['wave', 'orange-money', 'paydunya', 'membership'])
       .optional(),
     bookingDate: z
       .string()
@@ -148,7 +148,7 @@ const listBookingsQueryValidationSchema = z.object({
       .enum(['pending', 'confirmed', 'cancelled', 'completed'])
       .optional(),
     customerType: z
-      .enum(['member', 'walk-in', 'pass'])
+      .enum(['member', 'walk-in', 'pass', 'mobile'])
       .optional(),
     bayNumber: z
       .string()

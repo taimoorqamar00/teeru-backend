@@ -28,6 +28,7 @@ const buyTicket = async (data: BuyTicketInput) => {
     // 2. Create Ticket
     const ticketData = {
       userId: data.userId,
+      deviceId: data.deviceId,
       eventId: data.eventId,
       paymentId: newPayment[0]._id,
       tickets: data.tickets,
@@ -60,16 +61,16 @@ const buyTicket = async (data: BuyTicketInput) => {
   }
 };
 
-const getUserTickets = async (userId: Types.ObjectId | string) => {
-  const tickets = await Ticket.find({ userId })
+const getUserTickets = async (filter: { userId?: Types.ObjectId | string; deviceId?: string }) => {
+  const tickets = await Ticket.find(filter)
     .populate({
       path: 'eventId',
       populate: {
         path: "category"
       }
-    })   // Optional: populate event info
-    .populate('paymentId') // Optional: populate payment info
-    .sort({ createdAt: -1 }); // Newest first
+    })
+    .populate('paymentId')
+    .sort({ createdAt: -1 });
 
   return tickets || [];
 };

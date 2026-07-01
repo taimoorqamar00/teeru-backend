@@ -14,6 +14,7 @@ const ticketInfoSchema = new Schema<TTicketInfo>(
 const ticketSchema = new Schema<TTicket>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    deviceId: { type: String },
     eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', required: true },
     tickets: {

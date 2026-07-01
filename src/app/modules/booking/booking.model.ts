@@ -32,7 +32,7 @@ const bookingSchema = new Schema<TBooking>(
     },
     customerType: {
       type: String,
-      enum: ['member', 'walk-in', 'pass'],
+      enum: ['member', 'walk-in', 'pass', 'mobile'],
       required: true,
     },
     bayNumber: {
