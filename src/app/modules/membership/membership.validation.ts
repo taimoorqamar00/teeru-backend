@@ -9,12 +9,17 @@ const customerInfoSchema = z.object({
   customerId: objectIdSchema.optional(),
 });
 
+const featuresSchema = z.object({
+  en: z.array(z.string()).default([]),
+  fr: z.array(z.string()).default([]),
+});
+
 const createPlanSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Name is required').max(100),
     price: z.number().min(0, 'Price must be non-negative'),
-    hoursPerMonth: z.number().min(0, 'Hours must be non-negative'),
-    features: z.array(z.string()).optional().default([]),
+    hoursPerMonth: z.number().min(0, 'Hours must be non-negative').optional().default(0),
+    features: featuresSchema.optional().default({ en: [], fr: [] }),
   }),
 });
 
@@ -24,7 +29,7 @@ const updatePlanSchema = z.object({
       name: z.string().min(1).max(100).optional(),
       price: z.number().min(0).optional(),
       hoursPerMonth: z.number().min(0).optional(),
-      features: z.array(z.string()).optional(),
+      features: featuresSchema.optional(),
     })
     .refine((d) => Object.keys(d).length > 0, { message: 'At least one field is required' }),
 });

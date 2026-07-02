@@ -6,7 +6,7 @@ export interface TMembershipPlan {
   price: number;
   period: string;
   hoursPerMonth: number;
-  features: string[];
+  features: { en: string[]; fr: string[] };
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

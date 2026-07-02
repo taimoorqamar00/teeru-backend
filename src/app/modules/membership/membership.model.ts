@@ -7,7 +7,10 @@ const membershipPlanSchema = new Schema<TMembershipPlan>(
     price: { type: Number, required: true, min: 0 },
     period: { type: String, default: 'monthly' },
     hoursPerMonth: { type: Number, required: true, min: 0 },
-    features: [{ type: String }],
+    features: {
+      en: { type: [String], default: [] },
+      fr: { type: [String], default: [] },
+    },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
