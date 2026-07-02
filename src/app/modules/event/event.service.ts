@@ -37,7 +37,7 @@ const getAllEventss = async (query: Record<string, unknown>, filterFutureEvents:
   }
 
 
-  const eventQuery = new QueryBuilder(Event.find(eventQueryObj).populate("category"), query)
+  const eventQuery = new QueryBuilder(Event.find(eventQueryObj).populate("category").populate("zoneTicketPrices.zoneType"), query)
     .search([]) // Add searchable fields if needed
     .filter()
     .sort()
