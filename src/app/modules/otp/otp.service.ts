@@ -111,30 +111,21 @@ const resendOtpEmail = async ({ token }: { token: string }) => {
   });
   const { email } = decodeData;
 
-  const { isExist, isExpireOtp } = await checkOtpByEmail(email);
+  const isExist = await Otp.findOne({ sentTo: email });
+  if (!isExist) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Token data is not valid !!');
+  }
 
   const { otp, expiredAt } = generateOptAndExpireTime();
 
-  if (!isExist) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Token data is not valid !!');
-  } else if (isExist && !isExpireOtp) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Otp exist. Please check email.',
-    );
-  } else if (isExist && isExpireOtp) {
-    const otpUpdateData = {
-      otp,
-      expiredAt,
-    };
-
-    await updateOtpByEmail(email, otpUpdateData);
-  }
+  // Delete all existing OTPs for this email so otpMatch always finds the new one
+  await Otp.deleteMany({ sentTo: email });
+  await Otp.create({ sentTo: email, receiverType: isExist.receiverType, purpose: isExist.purpose, otp, expiredAt, status: 'pending' });
 
   process.nextTick(async () => {
     await otpSendEmail({
       sentTo: email,
-      subject: 'Re-send your one time otp for email  verification',
+      subject: 'Re-send your one time otp for email verification',
       name: '',
       otp,
       expiredAt: expiredAt,
