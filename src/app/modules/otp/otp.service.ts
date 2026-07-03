@@ -85,6 +85,10 @@ const otpMatch = async (email: string, otp: string) => {
   return isOtpMatch;
 };
 
+const deleteOtpByEmail = async (email: string) => {
+  await Otp.deleteMany({ sentTo: email });
+};
+
 const updateOtpByEmail = async (
   email: string,
   payload: Record<string, any>,
@@ -139,5 +143,6 @@ export const otpServices = {
   checkOtpByNumber,
   otpMatch,
   updateOtpByEmail,
+  deleteOtpByEmail,
   resendOtpEmail,
 };

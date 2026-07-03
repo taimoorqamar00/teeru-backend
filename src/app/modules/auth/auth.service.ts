@@ -77,39 +77,18 @@ const forgotPasswordByEmail = async (email: string) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
   }
 
-  const { isExist, isExpireOtp } = await otpServices.checkOtpByEmail(email);
-
   const { otp, expiredAt } = generateOptAndExpireTime();
 
-  if (isExist && !isExpireOtp) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'otp-exist. Check your email.');
-  } else if (isExist && isExpireOtp) {
-    const otpUpdateData = {
-      otp,
-      expiredAt,
-      status: 'pending',
-    };
-
-    await otpServices.updateOtpByEmail(email, otpUpdateData);
-  }
-  else if(!isExist && user.role === 'admin'){
-    const otpUpdateData = {
-      otp,
-      expiredAt,
-      status: 'pending',
-    };
-
-    await otpServices.updateOtpByEmail(email, otpUpdateData);
-
-    await otpServices.createOtp({
-      name: 'Customer',
-      sentTo: email,
-      receiverType: 'email',
-      purpose: 'forget-password',
-      otp,
-      expiredAt,
-    });
-  }
+  // Remove any stale OTPs and create a fresh one
+  await otpServices.deleteOtpByEmail(email);
+  await otpServices.createOtp({
+    name: user.fullName || '',
+    sentTo: email,
+    receiverType: 'email',
+    purpose: 'forget-password',
+    otp,
+    expiredAt,
+  });
 
   const jwtPayload = {
     email: email,
@@ -122,14 +101,12 @@ const forgotPasswordByEmail = async (email: string) => {
     expity_time: config.otp_token_expire_time as string | number,
   });
 
-  process.nextTick(async () => {
-    await otpSendEmail({
-      sentTo: email,
-      subject: 'Your one time otp for forget password',
-      name: '',
-      otp,
-      expiredAt: expiredAt,
-    });
+  await otpSendEmail({
+    sentTo: email,
+    subject: 'Your one time OTP for forgot password',
+    name: '',
+    otp,
+    expiredAt: expiredAt,
   });
 
   return { forgetToken };
