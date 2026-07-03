@@ -24,6 +24,14 @@ async function main() {
     //   'mongodb+srv://tiger:tiger@team-codecanyon.ffrshve.mongodb.net/pro-mentors?retryWrites=true&w=majority&appName=Team-CodeCanyon',
     // );
 
+    // Drop the legacy unique index on bays.number if it exists
+    try {
+      await mongoose.connection.collection('bays').dropIndex('number_1');
+      console.log('Dropped legacy unique index: bays.number_1');
+    } catch {
+      // Index doesn't exist — nothing to do
+    }
+
     createDefaultAdmin();
     seedMembershipPlans();
     seedZoneTypes();

@@ -10,6 +10,13 @@ import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
 
 const createBay = async (payload: TBayCreate): Promise<TBay> => {
+  // Drop legacy unique index on number if it still exists in MongoDB
+  try {
+    await Bay.collection.dropIndex('number_1');
+  } catch {
+    // Already dropped or never existed — ignore
+  }
+
   const bay = await Bay.create(payload);
   return bay;
 };
@@ -135,6 +142,10 @@ const deleteBay = async (id: string): Promise<TBay | null> => {
   }
 
   const deletedBay = await Bay.findByIdAndDelete(id);
+
+  if (deletedBay) {
+    await Schedule.deleteMany({ bayId: id });
+  }
 
   return deletedBay;
 };
