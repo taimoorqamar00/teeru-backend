@@ -42,13 +42,13 @@ const scheduleSchema = new Schema<TSchedule>(
     duration: {
       type: Number,
       required: true,
-      min: 1,
-      max: 24, // Maximum 24 hours
+      min: 0.5,
+      max: 24,
       validate: {
         validator: function (value: number) {
-          return Number.isInteger(value);
+          return value % 0.5 === 0;
         },
-        message: 'Duration must be an integer',
+        message: 'Duration must be a multiple of 0.5',
       },
     },
     pricing: {

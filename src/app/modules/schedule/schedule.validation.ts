@@ -29,9 +29,9 @@ const createScheduleValidationSchema = z.object({
       }),
     duration: z
       .number()
-      .int()
-      .min(1, { message: 'Duration must be at least 1 hour' })
-      .max(24, { message: 'Duration cannot exceed 24 hours' }),
+      .min(0.5, { message: 'Duration must be at least 0.5 hours' })
+      .max(24, { message: 'Duration cannot exceed 24 hours' })
+      .multipleOf(0.5, { message: 'Duration must be a multiple of 0.5' }),
     pricing: pricingSchema,
     // Accept either shape: timeSlot (new) or timeSlots array (legacy)
     timeSlot: z
@@ -90,9 +90,9 @@ const updateScheduleValidationSchema = z.object({
       .optional(),
     duration: z
       .number()
-      .int()
-      .min(1, { message: 'Duration must be at least 1 hour' })
+      .min(0.5, { message: 'Duration must be at least 0.5 hours' })
       .max(24, { message: 'Duration cannot exceed 24 hours' })
+      .multipleOf(0.5, { message: 'Duration must be a multiple of 0.5' })
       .optional(),
     pricing: pricingSchema.optional(),
     pricingRuleId: z

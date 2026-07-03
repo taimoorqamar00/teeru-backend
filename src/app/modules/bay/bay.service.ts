@@ -17,6 +17,17 @@ const createBay = async (payload: TBayCreate): Promise<TBay> => {
     // Already dropped or never existed — ignore
   }
 
+  // If a soft-deleted bay with the same number exists, reactivate it
+  const softDeleted = await Bay.collection.findOne({ number: payload.number, isDeleted: true });
+  if (softDeleted) {
+    const reactivated = await Bay.findByIdAndUpdate(
+      softDeleted._id,
+      { ...payload, isDeleted: false },
+      { new: true, runValidators: true }
+    );
+    return reactivated as TBay;
+  }
+
   const bay = await Bay.create(payload);
   return bay;
 };
