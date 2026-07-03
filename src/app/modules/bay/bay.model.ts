@@ -1,4 +1,6 @@
 import { Schema, model } from 'mongoose';
+import AppError from '../../error/AppError';
+import httpStatus from 'http-status';
 import { TBay, BayModel } from './bay.interface';
 
 // Main bay schema
@@ -13,7 +15,6 @@ const baySchema = new Schema<TBay>(
     number: {
       type: Number,
       required: true,
-      unique: true,
       min: 1,
       validate: {
         validator: function (value: number) {
@@ -67,8 +68,7 @@ baySchema.pre('save', async function (next) {
     );
     
     if (existingBay) {
-      const error = new Error('Bay number already exists');
-      return next(error);
+      return next(new AppError(httpStatus.CONFLICT, `Bay number ${this.number} already exists`));
     }
   }
   next();
