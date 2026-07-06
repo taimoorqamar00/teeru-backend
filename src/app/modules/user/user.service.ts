@@ -74,18 +74,13 @@ const createUserToken = async (payload: TUserCreate) => {
     gender,
   };
 
-  // send email
-  console.log('before otp send email');
-  process.nextTick(async () => {
-    await otpSendEmail({
-      sentTo: email,
-      subject: 'Your one time otp for email  verification',
-      name: 'Customer',
-      otp,
-      expiredAt: expiredAt,
-    });
+  await otpSendEmail({
+    sentTo: email,
+    subject: 'Your one time OTP for email verification',
+    name: 'Customer',
+    otp,
+    expiredAt: expiredAt,
   });
-  console.log('after otp send email');
 
   // crete token
   const createUserToken = createToken({
