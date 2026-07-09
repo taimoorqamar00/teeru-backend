@@ -30,10 +30,9 @@ router.post(
   bayController.bookBay
 );
 
-// Check if a slot is already booked (auth required)
+// Check if a slot is already booked (public)
 router.get(
   '/check-slot/:slotId',
-  auth('user', 'admin'),
   bayController.checkSlotAvailability
 );
 
