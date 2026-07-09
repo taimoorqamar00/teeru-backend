@@ -709,6 +709,91 @@ const bookBay = async (userId: string, payload: {
   };
 };
 
+const checkSlotAvailability = async (scheduleId: string): Promise<{
+  isAvailable: boolean;
+  message: string;
+  slot?: {
+    _id: string;
+    bayId: string;
+    bayName: string;
+    bayNumber: number;
+    date: string;
+    timeSlot: string;
+    endTime: string;
+    duration: number;
+    pricing: object;
+  };
+}> => {
+  if (!mongoose.Types.ObjectId.isValid(scheduleId)) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid slot ID');
+  }
+
+  // Fetch the schedule slot
+  const schedule = await Schedule.findById(scheduleId).lean() as any;
+  if (!schedule) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Slot not found');
+  }
+
+  // Resolve bay number from bayId
+  const bay = await Bay.findById(schedule.bayId).lean();
+  if (!bay) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Bay associated with this slot not found');
+  }
+
+  // Parse slot time boundaries
+  const [slotH, slotM] = (schedule.timeSlot as string).split(':').map(Number);
+  const slotStartMin = slotH * 60 + slotM;
+  const slotEndMin = slotStartMin + (schedule.duration as number) * 60;
+
+  // Look for any active booking on the same bay that overlaps this slot
+  const startOfDay = new Date(schedule.date as string);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(schedule.date as string);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+
+  const activeBookings = await Booking.find({
+    bayNumber: (bay as any).number,
+    bookingDate: { $gte: startOfDay, $lte: endOfDay },
+    status: { $in: ['pending', 'confirmed'] },
+    isDeleted: false,
+  }).lean();
+
+  const isBooked = activeBookings.some((booking) => {
+    if (!booking.startTime) return false;
+    const [bH, bM] = (booking.startTime as string).split(':').map(Number);
+    const bookingStartMin = bH * 60 + bM;
+    const bookingEndMin = bookingStartMin + (booking.duration as number) * 60;
+    // Strict overlap — boundary-sharing (e.g. 11:00–12:00 and 12:00–13:00) is allowed
+    return slotStartMin < bookingEndMin && bookingStartMin < slotEndMin;
+  });
+
+  const slotData = {
+    _id: schedule._id.toString(),
+    bayId: schedule.bayId.toString(),
+    bayName: (bay as any).name,
+    bayNumber: (bay as any).number,
+    date: schedule.date as string,
+    timeSlot: schedule.timeSlot as string,
+    endTime: calculateEndTime(schedule.timeSlot as string, schedule.duration as number),
+    duration: schedule.duration as number,
+    pricing: schedule.pricing,
+  };
+
+  if (isBooked) {
+    return {
+      isAvailable: false,
+      message: 'This slot is already booked. Please choose a different time slot.',
+      slot: slotData,
+    };
+  }
+
+  return {
+    isAvailable: true,
+    message: 'This slot is available for booking.',
+    slot: slotData,
+  };
+};
+
 export const bayService = {
   createBay,
   getAllBays,
@@ -722,4 +807,5 @@ export const bayService = {
   getMyBays,
   getBayDetails,
   bookBay,
+  checkSlotAvailability,
 };

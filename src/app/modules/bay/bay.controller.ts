@@ -260,6 +260,31 @@ const bookBay = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const checkSlotAvailability = catchAsync(async (req: Request, res: Response) => {
+  const { slotId } = req.params;
+
+  if (!slotId || !/^[0-9a-fA-F]{24}$/.test(slotId)) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Invalid slot ID format',
+      data: null,
+    });
+  }
+
+  const result = await bayService.checkSlotAvailability(slotId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: result.message,
+    data: {
+      isAvailable: result.isAvailable,
+      slot: result.slot,
+    },
+  });
+});
+
 export const bayController = {
   createBay,
   getAllBays,
@@ -274,4 +299,5 @@ export const bayController = {
   getMyBays,
   getBayDetails,
   bookBay,
+  checkSlotAvailability,
 };
