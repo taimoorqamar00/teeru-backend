@@ -165,12 +165,6 @@ const forgotPasswordOtpMatch = async ({
     throw new AppError(httpStatus.BAD_REQUEST, 'OTP did not match');
   }
 
-  process.nextTick(async () => {
-    await otpServices.updateOtpByEmail(email, {
-      status: 'verified',
-    });
-  });
-
   const user: TUser | null = await User.isUserActive(email);
 
   if (!user) {
@@ -187,6 +181,8 @@ const forgotPasswordOtpMatch = async ({
     access_secret: config.jwt_access_secret as string,
     expity_time: config.otp_token_expire_time as string | number,
   });
+
+  await otpServices.updateOtpByEmail(email, { status: 'verified' });
 
   return { forgetOtpMatchToken };
 };

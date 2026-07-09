@@ -120,6 +120,11 @@ scheduleSchema.pre('save', async function (next) {
 
 // Returns the first conflicting schedule, or null if the slot is free.
 // Two slots conflict when newStart < existEnd && existStart < newEnd (strict — boundary-sharing is allowed).
+// Only schedules of the SAME duration are compared — different durations are
+// independent booking options for the same bay+time (e.g. a 1hr slot at 10-11
+// and a 2hr slot at 10-12 can both exist as choices for the customer). Once a
+// customer books one, getAvailableSlots hides the other overlapping options by
+// checking against actual Booking records, so bays can't be double-booked.
 scheduleSchema.statics.isScheduleExist = async function (
   this: any,
   bayId: string,
@@ -134,7 +139,7 @@ scheduleSchema.statics.isScheduleExist = async function (
   const newStart = newH * 60 + newM;
   const newEnd = newStart + duration * 60;
 
-  const query: any = { bayId, date, isDeleted: false };
+  const query: any = { bayId, date, duration, isDeleted: false };
   if (excludeId) query._id = { $ne: excludeId };
 
   const existing: TSchedule[] = await this.find(query).lean();

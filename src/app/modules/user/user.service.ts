@@ -52,6 +52,7 @@ const createUserToken = async (payload: TUserCreate) => {
     const otpUpdateData = {
       otp,
       expiredAt,
+      status: 'pending',
     };
 
     await otpServices.updateOtpByEmail(email, otpUpdateData);
@@ -185,12 +186,6 @@ const otpVerifyAndCreateUser = async ({
     throw new AppError(httpStatus.BAD_REQUEST, 'OTP did not match');
   }
 
-  process.nextTick(async () => {
-    await otpServices.updateOtpByEmail(email, {
-      status: 'verified',
-    });
-  });
-
   const isExist = await User.isUserExist(email as string);
 
   if (isExist) {
@@ -210,6 +205,8 @@ const otpVerifyAndCreateUser = async ({
   };
 
   const user = await User.create(userData);
+
+  await otpServices.updateOtpByEmail(email, { status: 'verified' });
 
   console.log({ user });
 
