@@ -631,33 +631,46 @@ const bookBay = async (userId: string, payload: {
     throw new AppError(httpStatus.BAD_REQUEST, 'Transaction ID is required for payment bookings');
   }
 
-  // Calculate total amount from pricing rules or schedule
+  // Calculate total amount — pricing rules take priority over the schedule's standardRate
   let totalAmount = 0;
 
-  if (payload.scheduleId) {
+  // 1. Check if a pricing rule applies to the booking date and start time
+  const dayOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const dayName = dayOfWeek[bookingDate.getDay()];
+
+  const applicableRules = await PricingRule.find({
+    days: dayName,
+    isActive: true,
+    isDeleted: false,
+  }).lean();
+
+  // Pick the rule whose time window contains the booking start time
+  const bookingStartMin = (() => {
+    const [h, m] = payload.startTime.split(':').map(Number);
+    return h * 60 + m;
+  })();
+
+  const matchedRule = applicableRules.find((rule) => {
+    const [sh, sm] = rule.startTime.split(':').map(Number);
+    const [eh, em] = rule.endTime.split(':').map(Number);
+    const ruleStart = sh * 60 + sm;
+    const ruleEnd = eh * 60 + em;
+    return bookingStartMin >= ruleStart && bookingStartMin < ruleEnd;
+  });
+
+  if (matchedRule) {
+    totalAmount = matchedRule.pricePerHour * payload.duration;
+  } else if (payload.scheduleId) {
+    // 2. Fall back to the schedule slot's standardRate
     const schedule = await Schedule.findById(payload.scheduleId).lean() as any;
-    if (schedule && schedule.pricing) {
-      totalAmount = (schedule.pricing.standardRate || 0) * payload.duration;
+    if (schedule?.pricing?.standardRate) {
+      totalAmount = schedule.pricing.standardRate * payload.duration;
     }
   }
 
   if (!totalAmount) {
-    // Fallback: use pricing rules for the day
-    const dayOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const dayName = dayOfWeek[bookingDate.getDay()];
-
-    const rule = await PricingRule.findOne({
-      days: dayName,
-      isActive: true,
-      isDeleted: false,
-    }).lean();
-
-    if (rule) {
-      totalAmount = rule.pricePerHour * payload.duration;
-    } else {
-      // Default rate
-      totalAmount = 25000 * payload.duration;
-    }
+    // 3. Last-resort default
+    totalAmount = 25000 * payload.duration;
   }
 
   // Create the booking
