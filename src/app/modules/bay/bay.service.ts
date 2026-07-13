@@ -429,6 +429,20 @@ const getBayDetails = async (bayId: string, date?: string): Promise<any> => {
     refs.map((ref) => addonByRef.get(ref) || { _id: ref });
   const allAddOns = resolveAddOns(allAddOnRefs);
 
+  // Build a helper to find the effective rate for a given slot start time
+  const getEffectiveRate = (slotStartTime: string, fallbackRate: number): number => {
+    const [h, m] = slotStartTime.split(':').map(Number);
+    const slotMin = h * 60 + m;
+    const matchedRule = pricingRules.find((rule) => {
+      const [sh, sm] = rule.startTime.split(':').map(Number);
+      const [eh, em] = rule.endTime.split(':').map(Number);
+      const ruleStart = sh * 60 + sm;
+      const ruleEnd = eh * 60 + em;
+      return slotMin >= ruleStart && slotMin < ruleEnd;
+    });
+    return matchedRule ? matchedRule.pricePerHour : fallbackRate;
+  };
+
   // Build slots with availability status
   const slots = schedules.map((schedule) => {
     const slotStart = schedule.timeSlot;
@@ -457,12 +471,15 @@ const getBayDetails = async (bayId: string, date?: string): Promise<any> => {
         })
       : null;
 
+    // Override standardRate with the effective pricing rule rate if one applies
+    const effectiveRate = getEffectiveRate(slotStart, (schedule.pricing as any)?.standardRate ?? 0);
+
     return {
       _id: schedule._id,
       timeSlot: slotStart,
       endTime: slotEnd,
       duration: schedule.duration,
-      pricing: schedule.pricing,
+      pricing: { standardRate: effectiveRate },
       addOns: resolveAddOns(schedule.addOns || []),
       isAvailable: !isBooked,
       booking: matchingBooking
