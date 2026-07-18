@@ -74,7 +74,24 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
     status: 'confirmed',
   }).lean();
 
+  // Resolve all add-on refs across today's bookings to their names (single DB call)
+  const allAddOnRefs = [...new Set(todayBookings.flatMap((b) => b.addOns ?? []))];
+  const resolvedAddons = allAddOnRefs.length > 0
+    ? await addonService.getAddonsByRefs(allAddOnRefs)
+    : [];
+  const addonNameByRef = new Map<string, string>(
+    resolvedAddons.flatMap((addon) => [
+      [addon._id.toString(), addon.name] as [string, string],
+      [addon.name, addon.name] as [string, string],
+    ])
+  );
+  const resolveAddOnNames = (refs: string[]): string[] =>
+    refs.map((ref) => addonNameByRef.get(ref) ?? ref);
+
+  // Use minutes-of-day arithmetic to avoid timezone issues.
+  // startTime ("HH:mm") is stored in local/server time — compare against local now.
   const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   // Group bookings by bayNumber
   const bookingsByBay = new Map<number, any[]>();
@@ -88,28 +105,32 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
     const bayBookings = bookingsByBay.get(bay.number) ?? [];
     const result: any = { ...bay };
 
-    let upcomingStart: Date | null = null;
+    let earliestUpcomingMinutes: number | null = null;
 
     for (const booking of bayBookings) {
-      const [h, m] = booking.startTime.split(':').map(Number);
-      const start = new Date(booking.bookingDate as Date);
-      start.setUTCHours(h, m, 0, 0);
-      const end = new Date(start.getTime() + booking.duration * 3600000);
+      const [h, m] = (booking.startTime as string).split(':').map(Number);
+      const startMinutes = h * 60 + m;
+      const endMinutes = startMinutes + booking.duration * 60;
 
-      if (start <= now && now < end) {
+      if (startMinutes <= nowMinutes && nowMinutes < endMinutes) {
+        // Active session right now
+        const remainingTime = endMinutes - nowMinutes;
+        const endH = Math.floor(endMinutes / 60) % 24;
+        const endM = endMinutes % 60;
         result.currentBooking = {
           _id: booking._id,
           customerName: booking.customerInfo?.name,
-          remainingTime: Math.ceil((end.getTime() - now.getTime()) / 60000),
-          endTime: `${end.getUTCHours().toString().padStart(2, '0')}:${end.getUTCMinutes().toString().padStart(2, '0')}`,
-          addOns: booking.addOns ?? [],
+          remainingTime,
+          endTime: `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`,
+          addOns: resolveAddOnNames(booking.addOns ?? []),
         };
-      } else if (start > now) {
-        if (upcomingStart === null || start < upcomingStart) {
-          upcomingStart = start;
+      } else if (startMinutes > nowMinutes) {
+        // Future session today — keep the earliest one as upcomingBooking
+        if (earliestUpcomingMinutes === null || startMinutes < earliestUpcomingMinutes) {
+          earliestUpcomingMinutes = startMinutes;
           result.upcomingBooking = {
             _id: booking._id,
-            startsIn: Math.ceil((start.getTime() - now.getTime()) / 60000),
+            startsIn: startMinutes - nowMinutes,
           };
         }
       }

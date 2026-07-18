@@ -154,13 +154,13 @@ bookingSchema.statics.isBookingExist = async function (
   duration: number,
   excludeId?: string
 ): Promise<boolean> {
-  const [startHours, startMinutes] = startTime.split(':').map(Number);
-  const startTotalMinutes = startHours * 60 + startMinutes;
-  const endTotalMinutes = startTotalMinutes + (duration * 60);
-
+  // Exact-match only: two bookings conflict only when they share the same
+  // bayNumber, bookingDate, AND startTime. Overlapping-but-different slots
+  // (e.g. 10:00–11:00 and 10:30–11:30) are intentionally allowed.
   const query: any = {
     bayNumber,
     bookingDate: new Date(date),
+    startTime,
     status: { $in: ['pending', 'confirmed'] },
     isDeleted: false,
   };
@@ -169,21 +169,8 @@ bookingSchema.statics.isBookingExist = async function (
     query._id = { $ne: excludeId };
   }
 
-  const existingBookings = await this.find(query);
-
-  for (const booking of existingBookings) {
-    const [existingStartHours, existingStartMinutes] = booking.startTime.split(':').map(Number);
-    const existingStartTotalMinutes = existingStartHours * 60 + existingStartMinutes;
-    const existingEndTotalMinutes = existingStartTotalMinutes + (booking.duration * 60);
-
-    // Strict overlap: sessions that share only a boundary point (one ends at 11:00,
-    // the next starts at 11:00) are not considered conflicting.
-    if (startTotalMinutes < existingEndTotalMinutes && existingStartTotalMinutes < endTotalMinutes) {
-      return true;
-    }
-  }
-
-  return false; // No overlap
+  const existing = await this.findOne(query);
+  return !!existing;
 };
 
 // Static method to find bookings by date range
