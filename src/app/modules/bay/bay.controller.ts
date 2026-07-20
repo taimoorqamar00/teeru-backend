@@ -184,16 +184,14 @@ const getBayStatistics = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getLiveBays = catchAsync(async (req: Request, res: Response) => {
-  const query = req.query;
-
-  const result = await bayService.getAllBays(query);
+  const { bookingService } = await import('../booking/booking.service');
+  const result = await bookingService.getLiveSessions();
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Live bay status retrieved successfully',
-    data: result.data,
-    meta: result.meta,
+    data: result,
   });
 });
 

@@ -420,13 +420,18 @@ const startSession = async (id: string): Promise<TBooking> => {
 
 const getLiveSessions = async () => {
   const now = new Date();
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+  // Use UTC midnight boundaries — bookingDate is stored as UTC midnight
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  const todayEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+  // Load actual bays from the DB — never hardcode
+  const { Bay } = await import('../bay/bay.model');
+  const dbBays = await Bay.find({ isActive: true, isDeleted: { $ne: true } })
+    .sort({ number: 1 })
+    .lean();
 
   const todayBookings = await Booking.find({
-    bookingDate: { $gte: todayStart, $lt: todayEnd },
+    bookingDate: { $gte: todayStart, $lte: todayEnd },
     status: { $in: ['confirmed', 'pending'] },
     isDeleted: false,
   })
@@ -434,21 +439,31 @@ const getLiveSessions = async () => {
     .sort({ startTime: 1 })
     .lean({ virtuals: true });
 
-  const BAY_NUMBERS = [1, 2, 3, 4];
-
-  const bays = BAY_NUMBERS.map((bayNumber) => {
+  const bays = dbBays.map((bay) => {
+    const bayNumber = bay.number;
     const bayBookings = todayBookings.filter((b: any) => b.bayNumber === bayNumber);
     let currentSession: any = null;
     let nextSession: any = null;
-    let status: 'occupied' | 'free' | 'upcoming' = 'free';
+    let status: 'occupied' | 'reserved' | 'free' | 'upcoming' = 'free';
 
     for (const booking of bayBookings) {
       const [h, m] = (booking.startTime as string).split(':').map(Number);
-      const start = new Date(booking.bookingDate as Date);
-      start.setUTCHours(h, m, 0, 0);
-      const end = new Date(start.getTime() + (booking.duration as number) * 3_600_000);
+      // Reconstruct start as UTC date + UTC time (startTime is stored as UTC HH:mm)
+      const start = new Date(Date.UTC(
+        (booking.bookingDate as Date).getUTCFullYear(),
+        (booking.bookingDate as Date).getUTCMonth(),
+        (booking.bookingDate as Date).getUTCDate(),
+        h, m, 0, 0,
+      ));
+      const end = new Date(start.getTime() + Math.round((booking.duration as number) * 3_600_000));
 
-      if ((booking.status === 'confirmed' || booking.status === 'pending') && now >= start && now < end) {
+      if (now >= end) {
+        // Session has finished but auto-complete timer hasn't run yet — skip it
+        continue;
+      }
+
+      if (now >= start && now < end) {
+        // ── Active right now ───────────────────────────────────────────────
         const progress = computeSessionProgress(
           booking.startTime as string,
           booking.bookingDate as Date,
@@ -474,8 +489,10 @@ const getLiveSessions = async () => {
           ...progress,
           needsConfirmation: booking.status === 'pending',
         };
-        status = 'occupied';
+        // 'reserved' = pending check-in, 'occupied' = actively confirmed running
+        status = booking.status === 'confirmed' ? 'occupied' : 'reserved';
       } else if (now < start && !nextSession) {
+        // ── Upcoming — grab the earliest one ──────────────────────────────
         const scheduleDoc = booking.scheduleId as any;
         nextSession = {
           bookingId: (booking as any)._id,
@@ -502,16 +519,27 @@ const getLiveSessions = async () => {
           notes: booking.notes ?? null,
           bookingDate: booking.bookingDate,
           status: booking.status,
+          startsInMin: Math.round((start.getTime() - now.getTime()) / 60_000),
         };
-        if (status !== 'occupied') status = 'upcoming';
+        if (status !== 'occupied' && status !== 'reserved') status = 'upcoming';
       }
     }
 
-    return { bayNumber, status, currentSession, nextSession };
+    return {
+      bayId: (bay as any)._id,
+      bayName: bay.name,
+      bayNumber,
+      hardware: bay.hardware,
+      projector: bay.projector,
+      status,
+      currentSession,
+      nextSession,
+    };
   });
 
   const summary = {
     totalOccupied: bays.filter((b) => b.status === 'occupied').length,
+    totalReserved: bays.filter((b) => b.status === 'reserved').length,
     totalFree: bays.filter((b) => b.status === 'free').length,
     totalUpcoming: bays.filter((b) => b.status === 'upcoming').length,
   };

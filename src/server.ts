@@ -7,6 +7,7 @@ import { initSocketIO } from './socketIo';
 import createDefaultAdmin from './app/DB/createDefaultAdmin';
 import seedMembershipPlans from './app/DB/seedMembershipPlans';
 import { seedZoneTypes } from './app/DB/seedZoneTypes';
+import seedBays from './app/DB/seedBays';
 import { startSessionTimer } from './app/modules/booking/session.timer';
 
 // Create a new HTTP server
@@ -35,6 +36,7 @@ async function main() {
     createDefaultAdmin();
     seedMembershipPlans();
     seedZoneTypes();
+    seedBays();
     // Start Express server
     // server = app.listen(Number(config.port), config.ip as string, () => {
 

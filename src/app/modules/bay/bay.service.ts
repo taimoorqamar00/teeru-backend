@@ -35,14 +35,14 @@ const createBay = async (payload: TBayCreate): Promise<TBay> => {
 const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>> => {
   const {
     page = 1,
-    limit = 10,
+    limit = 200,
     sortBy = 'number',
     sortOrder = 'asc',
     isActive,
     search,
   } = query;
 
-  const filter: any = {};
+  const filter: any = { isDeleted: { $ne: true } };
   if (isActive !== undefined) filter.isActive = isActive;
   if (search) {
     filter.$or = [
@@ -61,17 +61,19 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
     Bay.countDocuments(filter),
   ]);
 
-  // Enrich with live booking data (single query, no N+1)
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+  // ── Live enrichment ──────────────────────────────────────────────────────────
+  // bookingDate is stored as midnight UTC of the date the user selected
+  // (e.g. new Date('2025-07-20') → 2025-07-20T00:00:00.000Z).
+  // We query the same way: UTC midnight of today.
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  const todayEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
 
   const bayNumbers = bays.map((b) => b.number);
   const todayBookings = await Booking.find({
     bayNumber: { $in: bayNumbers },
-    bookingDate: { $gte: todayStart, $lt: todayEnd },
-    status: 'confirmed',
+    bookingDate: { $gte: todayStart, $lte: todayEnd },
+    status: { $in: ['confirmed', 'pending'] },
   }).lean();
 
   // Resolve all add-on refs across today's bookings to their names (single DB call)
@@ -88,10 +90,9 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
   const resolveAddOnNames = (refs: string[]): string[] =>
     refs.map((ref) => addonNameByRef.get(ref) ?? ref);
 
-  // Use minutes-of-day arithmetic to avoid timezone issues.
-  // startTime ("HH:mm") is stored in local/server time — compare against local now.
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  // startTime ("HH:mm") was entered by staff/user as UTC time (same timezone as
+  // the server's bookingDate storage). Compare against current UTC minutes.
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
 
   // Group bookings by bayNumber
   const bookingsByBay = new Map<number, any[]>();
@@ -102,7 +103,9 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
   }
 
   const enrichedBays = bays.map((bay) => {
-    const bayBookings = bookingsByBay.get(bay.number) ?? [];
+    const bayBookings = (bookingsByBay.get(bay.number) ?? []).sort(
+      (a: any, b: any) => a.startTime.localeCompare(b.startTime),
+    );
     const result: any = { ...bay };
 
     let earliestUpcomingMinutes: number | null = null;
@@ -110,31 +113,53 @@ const getAllBays = async (query: TBayListQuery): Promise<IPaginationResult<any>>
     for (const booking of bayBookings) {
       const [h, m] = (booking.startTime as string).split(':').map(Number);
       const startMinutes = h * 60 + m;
-      const endMinutes = startMinutes + booking.duration * 60;
+      // duration is in hours, convert fractional hours to minutes
+      const endMinutes = startMinutes + Math.round(booking.duration * 60);
 
       if (startMinutes <= nowMinutes && nowMinutes < endMinutes) {
-        // Active session right now
+        // ── Active right now ────────────────────────────────────────────────
         const remainingTime = endMinutes - nowMinutes;
         const endH = Math.floor(endMinutes / 60) % 24;
         const endM = endMinutes % 60;
         result.currentBooking = {
           _id: booking._id,
           customerName: booking.customerInfo?.name,
+          customerPhone: booking.customerInfo?.phone,
+          customerType: booking.customerType,
+          status: booking.status,
           remainingTime,
+          startTime: booking.startTime,
           endTime: `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`,
+          duration: booking.duration,
+          totalAmount: booking.totalAmount,
+          paymentMethod: booking.paymentMethod,
           addOns: resolveAddOnNames(booking.addOns ?? []),
         };
+        // 'reserved' = booked but not yet started (pending), 'occupied' = confirmed running
+        result.liveStatus = booking.status === 'confirmed' ? 'occupied' : 'reserved';
       } else if (startMinutes > nowMinutes) {
-        // Future session today — keep the earliest one as upcomingBooking
+        // ── Upcoming today — keep the nearest one ───────────────────────────
         if (earliestUpcomingMinutes === null || startMinutes < earliestUpcomingMinutes) {
           earliestUpcomingMinutes = startMinutes;
           result.upcomingBooking = {
             _id: booking._id,
+            customerName: booking.customerInfo?.name,
+            customerPhone: booking.customerInfo?.phone,
+            customerType: booking.customerType,
+            status: booking.status,
+            startTime: booking.startTime,
             startsIn: startMinutes - nowMinutes,
+            duration: booking.duration,
+            totalAmount: booking.totalAmount,
+            paymentMethod: booking.paymentMethod,
           };
+          if (!result.liveStatus) result.liveStatus = 'upcoming';
         }
       }
+      // sessions where nowMinutes >= endMinutes are already finished — skip them
     }
+
+    if (!result.liveStatus) result.liveStatus = 'free';
 
     return result;
   });
@@ -315,7 +340,7 @@ const getBaysList = async (): Promise<Pick<TBay, '_id' | 'name' | 'number'>[]> =
 };
 
 const getMyBays = async (userId: string, query: any): Promise<IPaginationResult<any>> => {
-  const { page = 1, limit = 10, status } = query;
+  const { page = 1, limit = 200, status } = query;
 
   // Get user details to match with bookings
   const user = await User.findById(userId);
