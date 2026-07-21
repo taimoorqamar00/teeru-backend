@@ -1,5 +1,6 @@
 import { Booking } from './booking.model';
 import { emitSessionEvent } from '../../../socketIo';
+import { getBusinessNow, getBusinessDayRange } from '../../utils/businessTime';
 
 let timerHandle: NodeJS.Timeout | null = null;
 
@@ -23,7 +24,7 @@ export function computeSessionProgress(
   start.setUTCHours(h, m, 0, 0);
 
   const end = new Date(start.getTime() + duration * 3_600_000);
-  const now = Date.now();
+  const now = getBusinessNow().getTime();
   const totalMs = duration * 3_600_000;
   const elapsedMs = now - start.getTime();
   const remainingMs = end.getTime() - now;
@@ -40,14 +41,11 @@ export function computeSessionProgress(
 
 async function tick(): Promise<void> {
   try {
-    const now = new Date();
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+    const now = getBusinessNow();
+    const { start: todayStart, end: todayEnd } = getBusinessDayRange(now);
 
     const activeSessions = await Booking.find({
-      bookingDate: { $gte: todayStart, $lt: todayEnd },
+      bookingDate: { $gte: todayStart, $lte: todayEnd },
       status: 'confirmed',
       isDeleted: false,
     })

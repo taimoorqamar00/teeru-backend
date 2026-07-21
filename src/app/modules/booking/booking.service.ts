@@ -7,6 +7,7 @@ import AppError from '../../error/AppError';
 import { decrementMemberHours } from '../membership/membership.service';
 import { emitSessionEvent } from '../../../socketIo';
 import { computeSessionProgress } from './session.timer';
+import { getBusinessNow, getBusinessDayRange } from '../../utils/businessTime';
 
 // Pricing constants (can be moved to config)
 const BAY_RATES = {
@@ -208,15 +209,12 @@ const checkBayAvailability = async (
 };
 
 const getTodayBookings = async (): Promise<TBooking[]> => {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const { start, end } = getBusinessDayRange();
 
   return await Booking.find({
     bookingDate: {
-      $gte: today,
-      $lt: tomorrow,
+      $gte: start,
+      $lte: end,
     },
     isDeleted: false,
   })
@@ -225,8 +223,8 @@ const getTodayBookings = async (): Promise<TBooking[]> => {
 };
 
 const getUpcomingBookings = async (limit: number = 10): Promise<TBooking[]> => {
-  const now = new Date();
-  
+  const now = getBusinessNow();
+
   return await Booking.find({
     bookingDate: { $gte: now },
     status: { $in: ['pending', 'confirmed'] },
@@ -309,7 +307,7 @@ const extendSession = async (
   const start = new Date(booking.bookingDate as Date);
   start.setUTCHours(h, m, 0, 0);
   const currentEnd = new Date(start.getTime() + booking.duration * 3600000);
-  const now = new Date();
+  const now = getBusinessNow();
 
   if (now < start || now >= currentEnd) {
     throw new AppError(400, 'Session is not currently active');
@@ -396,7 +394,7 @@ const startSession = async (id: string): Promise<TBooking> => {
     throw new AppError(400, 'Only pending bookings can be started');
   }
 
-  const now = new Date();
+  const now = getBusinessNow();
   const hh = String(now.getUTCHours()).padStart(2, '0');
   const mm = String(now.getUTCMinutes()).padStart(2, '0');
 
@@ -419,10 +417,10 @@ const startSession = async (id: string): Promise<TBooking> => {
 };
 
 const getLiveSessions = async () => {
-  const now = new Date();
-  // Use UTC midnight boundaries — bookingDate is stored as UTC midnight
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-  const todayEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+  // now/todayStart/todayEnd are in business-local (Asia/Karachi, UTC+5) time,
+  // matching how bookingDate/startTime are entered and stored — see businessTime.ts.
+  const now = getBusinessNow();
+  const { start: todayStart, end: todayEnd } = getBusinessDayRange(now);
 
   // Load actual bays from the DB — never hardcode
   const { Bay } = await import('../bay/bay.model');
