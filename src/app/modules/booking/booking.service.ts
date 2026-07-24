@@ -224,15 +224,34 @@ const getTodayBookings = async (): Promise<TBooking[]> => {
 
 const getUpcomingBookings = async (limit: number = 10): Promise<TBooking[]> => {
   const now = getBusinessNow();
+  // Include everything from the start of today onward. bookingDate is a
+  // calendar-day field (stored at ~midnight), so comparing it directly against
+  // a mid-day `now` would wrongly drop all of today's bookings — filter by the
+  // real start instant (bookingDate + startTime "HH:mm") in JS instead.
+  const { start: todayStart } = getBusinessDayRange(now);
 
-  return await Booking.find({
-    bookingDate: { $gte: now },
+  const candidates = await Booking.find({
+    bookingDate: { $gte: todayStart },
     status: { $in: ['pending', 'confirmed'] },
     isDeleted: false,
   })
     .populate('scheduleId', 'timeSlot duration pricing addOns date')
     .sort({ bookingDate: 1, startTime: 1 })
-    .limit(limit);
+    .lean({ virtuals: true });
+
+  const upcoming = candidates.filter((booking) => {
+    if (!booking.startTime) return false;
+    const [h, m] = (booking.startTime as string).split(':').map(Number);
+    const start = new Date(Date.UTC(
+      (booking.bookingDate as Date).getUTCFullYear(),
+      (booking.bookingDate as Date).getUTCMonth(),
+      (booking.bookingDate as Date).getUTCDate(),
+      h, m, 0, 0,
+    ));
+    return start.getTime() > now.getTime();
+  });
+
+  return upcoming.slice(0, limit) as unknown as TBooking[];
 };
 
 const getBookingStatistics = async (dateFrom?: Date, dateTo?: Date): Promise<{
